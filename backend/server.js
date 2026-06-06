@@ -73,24 +73,17 @@ app.use(cookieParser());
 
 app.use(cors({
   origin: [
-    'http://localhost:5174',   // admin
-    "http://localhost:4000",
-    "https://sacrifice-ravishing-nail.ngrok-free.dev" // <--- ADD YOUR NGROK URL HERE!
+    'http://localhost:5174',   // admin local
+    'http://localhost:4000',   // server local
+    'https://sacrifice-ravishing-nail.ngrok-free.dev' // live ngrok tunnel
   ],
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 }));
-// Paste this right after your app.use(cors(...)) setup in server.js
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://sacrifice-ravishing-nail.ngrok-free.dev");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, ngrok-skip-browser-warning");
-  res.header("Access-Control-Allow-Credentials", "true");
-  
-  if (req.method === "OPTIONS") {
-    res.header("Access-Control-Allow-Methods", "PUT, POST, PATCH, DELETE, GET");
-    return res.status(200).json({});
-  }
-  next();
-});
+
+// Explicitly ensure OPTIONS pre-flights exit with a clear green light
+app.options('*', cors());
 
 // API Endpoints
 app.use('/api/user', userRouter);
