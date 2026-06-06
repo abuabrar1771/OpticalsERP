@@ -83,7 +83,12 @@ app.use(cors({
 }));
 
 // Explicitly ensure OPTIONS pre-flights exit with a clear green light
-app.options('*', cors());
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    return cors()(req, res, next);
+  }
+  next();
+});
 
 // API Endpoints
 app.use('/api/user', userRouter);
