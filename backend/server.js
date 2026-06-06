@@ -73,13 +73,13 @@ app.use(cookieParser());
 
 app.use(cors({
   origin: [
-    'http://localhost:5173',   // frontend
     'http://localhost:5174',   // admin
-    'https://superopticals.vercel.app' 
+    "http://localhost:4000",
+    "https://sacrifice-ravishing-nail.ngrok-free.dev" // <--- ADD YOUR NGROK URL HERE!
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true 
+  credentials: true
 }));
+
 
 // API Endpoints
 app.use('/api/user', userRouter);
