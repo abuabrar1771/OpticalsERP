@@ -79,7 +79,18 @@ app.use(cors({
   ],
   credentials: true
 }));
-
+// Paste this right after your app.use(cors(...)) setup in server.js
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://sacrifice-ravishing-nail.ngrok-free.dev");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, ngrok-skip-browser-warning");
+  res.header("Access-Control-Allow-Credentials", "true");
+  
+  if (req.method === "OPTIONS") {
+    res.header("Access-Control-Allow-Methods", "PUT, POST, PATCH, DELETE, GET");
+    return res.status(200).json({});
+  }
+  next();
+});
 
 // API Endpoints
 app.use('/api/user', userRouter);
