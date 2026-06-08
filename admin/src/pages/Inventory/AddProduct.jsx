@@ -1,8 +1,4 @@
 import React, { useEffect, useState } from "react";
-import {
-  HiOutlineCloudUpload,
-  HiOutlineTrash,
-} from "react-icons/hi";
 import { ToastContainer, toast } from "react-toastify";
 import axios from "axios";
 import "react-toastify/dist/ReactToastify.css";
@@ -17,7 +13,6 @@ const AddProduct = ({ token }) => {
   const [subCategory, setSubCategory] = useState(
     categoryMap[mainCategories[0]][0],
   );
-  const [images, setImages] = useState([]);
 
   const emptyForm = {
     sku: "",
@@ -165,19 +160,6 @@ const AddProduct = ({ token }) => {
     }
   };
 
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    const fileArray = files.map((file) => ({
-      file: file,
-      preview: URL.createObjectURL(file),
-    }));
-    setImages((prev) => [...prev, ...fileArray].slice(0, 5));
-  };
-
-  const removeImage = (index) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const toastId = toast.loading("Uploading product...");
@@ -195,7 +177,7 @@ const AddProduct = ({ token }) => {
       data.append("currency", formData?.currency || "INR");
       data.append("description", formData?.description || "");
       data.append("minStockAlert", formData?.minStockAlert || "3");
-      data.append("stock", formData?.stock || "0"); // Unified linear stock calculation tracking
+      data.append("stock", formData?.stock || "0"); 
       data.append("cgst", formData?.cgst || "0");
       data.append("sgst", formData?.sgst || "0");
 
@@ -224,14 +206,6 @@ const AddProduct = ({ token }) => {
       };
       data.append("metadata", JSON.stringify(safeMetadata));
 
-      if (Array.isArray(images)) {
-        images.forEach((img, index) => {
-          if (img?.file) {
-            data.append(`image${index + 1}`, img.file);
-          }
-        });
-      }
-
       const activeToken = localStorage.getItem("adminToken") || localStorage.getItem("token") || token || "";
 
       const response = await axios.post(`${backendUrl}/api/product/add`, data, {
@@ -247,7 +221,6 @@ const AddProduct = ({ token }) => {
         toast.dismiss(toastId); 
         toast.success("Added Product Details Successfully!");
 
-        setImages([]);
         setColor("");
 
         const lastSku = response.data.sku || formData.sku;
@@ -291,48 +264,6 @@ const AddProduct = ({ token }) => {
         </div>
 
         <div className="p-6 space-y-8">
-          {/* Gallery Row */}
-          <section>
-            <label className="block text-sm font-semibold text-slate-700 mb-3">
-              Product Gallery (Up to 5 images)
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-              {images.map((img, index) => (
-                <div
-                  key={index}
-                  className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200"
-                >
-                  <img
-                    src={img.preview}
-                    alt="preview"
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <HiOutlineTrash />
-                  </button>
-                </div>
-              ))}
-              {images.length < 5 && (
-                <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-slate-500 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors">
-                  <HiOutlineCloudUpload className="text-3xl text-slate-400" />
-                  <span className="text-xs text-slate-500 mt-2 text-center">
-                    Add Image {images.length + 1}
-                  </span>
-                  <input
-                    type="file"
-                    onChange={handleImageChange}
-                    className="hidden"
-                    accept="image/*"
-                  />
-                </label>
-              )}
-            </div>
-          </section>
-
           {/* Primary Info Rows */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2">
