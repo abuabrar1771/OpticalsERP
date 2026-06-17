@@ -1,6 +1,6 @@
 import productModel from "../models/productModel.js";
 import prescriptionModel from "../models/prescriptionModel.js";
-import invoiceModel from "../models/invoiceModel.js"; // 🌟 Added for in-store physical bills
+import counterSalesInvoiceModel from "../models/counterSalesInvoiceModel.js"; // 🌟 Upgraded to use your new counterSalesInvoice collection
 import mongoose from "mongoose";
 
 // Helper function to safely fetch the order model context dynamically
@@ -144,7 +144,7 @@ export const savePatientPrescription = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------
-// 4. 🚀 ADDED: DUAL LOOKUP PATIENT RESOLVER (PRESCRIPTIONS + INVOICES)
+// 4. DUAL LOOKUP PATIENT RESOLVER (PRESCRIPTIONS + COUNTER INVOICES)
 // ---------------------------------------------------------------------
 export const searchCustomerByMobile = async (req, res) => {
   try {
@@ -163,7 +163,7 @@ export const searchCustomerByMobile = async (req, res) => {
     const formattedPhoneVariant = cleanMobile.startsWith("+91") ? cleanMobile : `+91${cleanMobile.replace(/^\+?91/, "")}`;
     const escapedPhoneVariant = formattedPhoneVariant.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
 
-    const searchFilter = {
+    const searchFilterPrescription = {
       $or: [
         { patientName: { $regex: escapedSearchStr, $options: "i" } },
         { patientMobile: { $regex: escapedSearchStr, $options: "i" } },
@@ -171,9 +171,18 @@ export const searchCustomerByMobile = async (req, res) => {
       ],
     };
 
+    // Adapted to reflect counterSalesInvoice schema fields: customer.name and customer.phone
+    const searchFilterCounterInvoice = {
+      $or: [
+        { "customer.name": { $regex: escapedSearchStr, $options: "i" } },
+        { "customer.phone": { $regex: escapedSearchStr, $options: "i" } },
+        { "customer.phone": { $regex: escapedPhoneVariant, $options: "i" } },
+      ],
+    };
+
     // Pull from both collections simultaneously
-    const prescriptionMatches = await prescriptionModel.find(searchFilter).lean();
-    const invoiceMatches = await invoiceModel.find(searchFilter).lean();
+    const prescriptionMatches = await prescriptionModel.find(searchFilterPrescription).lean();
+    const invoiceMatches = await counterSalesInvoiceModel.find(searchFilterCounterInvoice).lean();
 
     const uniquePatientsMap = [];
     const trackingSet = new Set();
@@ -190,14 +199,16 @@ export const searchCustomerByMobile = async (req, res) => {
       }
     });
 
-    // Parse financial invoice documents (This catches your unclassified sales like NAGARAJ)
+    // Parse counter invoice documents
     invoiceMatches.forEach((record) => {
-      if (record.patientMobile && !trackingSet.has(record.patientMobile)) {
-        trackingSet.add(record.patientMobile);
+      const phone = record.customer?.phone;
+      const name = record.customer?.name;
+      if (phone && !trackingSet.has(phone)) {
+        trackingSet.add(phone);
         uniquePatientsMap.push({
           _id: record._id,
-          patientName: String(record.patientName || "Unknown Patient").toUpperCase().trim(),
-          patientMobile: record.patientMobile,
+          patientName: String(name || "Unknown Patient").toUpperCase().trim(),
+          patientMobile: phone,
         });
       }
     });
@@ -206,8 +217,8 @@ export const searchCustomerByMobile = async (req, res) => {
       success: true,
       exists: uniquePatientsMap.length > 0,
       patientName: uniquePatientsMap.length > 0 ? uniquePatientsMap[0].patientName : "",
-      history: uniquePatientsMap,         // Feeds retail billing search dropdown loops
-      customerMatches: uniquePatientsMap, // Feeds accounting vouchers search dropdown loops
+      history: uniquePatientsMap,         
+      customerMatches: uniquePatientsMap, 
     });
 
   } catch (error) {
@@ -223,9 +234,9 @@ export const getCustomerProfileByMobile = async (req, res) => {
   try {
     const { mobile } = req.params;
 
-    // Find all invoices for this mobile number from newest to oldest
-    const invoices = await invoiceModel
-      .find({ patientMobile: mobile })
+    // Find all counter invoices for this mobile number from newest to oldest
+    const invoices = await counterSalesInvoiceModel
+      .find({ "customer.phone": mobile })
       .sort({ createdAt: -1 });
 
     if (invoices.length === 0) {
@@ -242,7 +253,7 @@ export const getCustomerProfileByMobile = async (req, res) => {
     let leftEye = null;
     let latestLensSpecs = { type: "Plain / Frame Only", features: "None" };
 
-    // Scan invoices from newest to oldest to find the latest non-empty diopter parameters
+    // Scan invoices from newest to oldest to find the latest prescription values inside items array
     for (const inv of invoices) {
       if (!inv.items || inv.items.length === 0) continue;
 
@@ -269,27 +280,29 @@ export const getCustomerProfileByMobile = async (req, res) => {
       }
     }
 
-    // Map the database invoices into a clean frontend history array format
+    // Map the database counter invoices into a clean frontend history format
     const history = invoices.map((inv) => {
       let itemSummaryText = "No Items Recorded";
       if (inv.items && inv.items.length > 0) {
         itemSummaryText = inv.items
-          .map((i) => `${i.category.replace("_", " ")}: ${i.productName}`)
+          .map((i) => `${i.itemName} (Qty: ${i.quantity})`)
           .join(" + ");
       }
       return {
         date: new Date(inv.createdAt || inv.date).toLocaleDateString("en-IN"),
         invoiceNumber: inv.invoiceNumber,
         details: itemSummaryText,
-        totalAmount: `₹${inv.totalAmount}`,
-        paymentMode: inv.paymentMode,
+        totalAmount: `₹${inv.grandTotal}`,
+        advanceAmount: `₹${inv.advanceAmount || 0}`,
+        balanceDue: `₹${inv.balanceAmount || 0}`,
+        paymentMode: inv.paymentMethod,
+        status: inv.status
       };
     });
 
-    // Return payload to frontend dashboard interface matrix
     res.json({
-      name: latestInvoice.patientName,
-      mobile: latestInvoice.patientMobile,
+      name: latestInvoice.customer?.name,
+      mobile: latestInvoice.customer?.phone,
       lastVisit: new Date(
         latestInvoice.createdAt || latestInvoice.date,
       ).toLocaleDateString("en-IN"),
@@ -316,7 +329,7 @@ export const getCustomerProfileByMobile = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------
-// 6. CREATE IN-STORE CUSTOM JOB INVOICE & AUTO-DEDUCT CORES (FIXED MATRIX)
+// 6. CREATE IN-STORE COUNTER SALES INVOICE & AUTO-DEDUCT CORES
 // ---------------------------------------------------------------------
 export const createInStoreInvoice = async (req, res) => {
   try {
@@ -334,132 +347,95 @@ export const createInStoreInvoice = async (req, res) => {
       paymentMode,
       items,
       totalAmount,
+      advanceAmount, // 🌟 Received directly from frontend request body
     } = req.body;
 
     const cleanMobile = patientMobile.replace(/\s+/g, "").replace(/[-()]/g, "");
     const fullMobileNum = cleanMobile.startsWith("+91")
       ? cleanMobile
       : `+91${cleanMobile.replace(/^\+?91/, "")}`;
+      
     const generatedInvoiceNum =
       req.body.invoiceNumber || `INV-${Date.now().toString().slice(-6)}`;
 
-    // A. Parse frontend multi-row array or adapt flat item structures instantly
     let processingItems = [];
 
     if (items && Array.isArray(items) && items.length > 0) {
-      processingItems = items;
+      // Maps complex client items to structure matching counterSalesInvoice schema rules
+      processingItems = items.map(item => ({
+        itemName: item.productName || item.itemName || "Counter Item",
+        quantity: Number(item.quantity || 1),
+        price: Number(item.framePrice || item.price || 0),
+        taxRate: Number(item.taxRate || 0),
+        total: Number(item.itemSubtotal || item.total || 0),
+        // Preservation of optometry specific payloads for side-car prescription triggers
+        category: item.category || "EYE_GLASS",
+        frameProduct: item.frameProduct || item.frameId || null,
+        lensType: item.lensType || "Standard Non-Powered",
+        lensFeatures: item.lensFeatures || "None",
+        lensPrice: Number(item.lensPrice || 0),
+        rightEyePower: item.rightEyePower || rightEye,
+        leftEyePower: item.leftEyePower || leftEye
+      }));
     } else {
-      // Safe Fallback adapter transforms flat old structures into a valid item row matrix array
+      // Safe Fallback adapter transforms standard flat structures into array structures
+      const parsedFramePrice = Number(framePrice || 0);
+      const parsedLensPrice = Number(lensPrice || 0);
+      const combinedPrice = parsedFramePrice + parsedLensPrice;
+
       processingItems = [
         {
+          itemName: req.body.productName || "In-Store Item",
+          quantity: 1,
+          price: combinedPrice,
+          taxRate: 0,
+          total: combinedPrice,
           category: req.body.category || "EYE_GLASS",
-          subCategory: req.body.subCategory || "Full-Rim",
-          frameId: frameId || null,
           frameProduct: frameId || null,
-          productName: req.body.productName || "In-Store Item",
-          framePrice: Number(framePrice || 0),
           lensType: lensType || "Standard Non-Powered / Plano",
           lensFeatures: req.body.lensFeatures || "None",
-          lensPrice: Number(lensPrice || 0),
-          itemSubtotal: Number(framePrice || 0) + Number(lensPrice || 0),
-          rightEyePower: rightEye || {
-            sph: "0.00",
-            cyl: "0.00",
-            axis: "0",
-            add: "0.00",
-            pd: "60",
-          },
-          leftEyePower: leftEye || {
-            sph: "0.00",
-            cyl: "0.00",
-            axis: "0",
-            add: "0.00",
-            pd: "60",
-          },
+          lensPrice: parsedLensPrice,
+          rightEyePower: rightEye || { sph: "0.00", cyl: "0.00", axis: "0", add: "0.00", pd: "60" },
+          leftEyePower: leftEye || { sph: "0.00", cyl: "0.00", axis: "0", add: "0.00", pd: "60" },
         },
       ];
     }
 
-    // =====================================================================
-    // B. Calculate net billing financials accurately across all submitted grid canvas items
-    // =====================================================================
-    const grossTotalCalculated = processingItems.reduce((acc, curr) => {
-      const fallbackSum =
-        Number(curr.framePrice || 0) + Number(curr.lensPrice || 0);
-      return acc + (Number(curr.itemSubtotal) || fallbackSum);
-    }, 0);
-
+    // Calculations based on processed grid fields
+    const grossTotalCalculated = processingItems.reduce((acc, curr) => acc + curr.total, 0);
     const discountInput = Number(discount || 0);
     let calculatedDiscountAmount = 0;
 
-    if (
-      discountInput === Number(totalAmount) &&
-      discountInput > grossTotalCalculated / 2
-    ) {
-      calculatedDiscountAmount = Math.max(
-        0,
-        grossTotalCalculated - discountInput,
-      );
+    if (discountInput === Number(totalAmount) && discountInput > grossTotalCalculated / 2) {
+      calculatedDiscountAmount = Math.max(0, grossTotalCalculated - discountInput);
     } else if (discountInput > 0 && discountInput <= 100) {
-      calculatedDiscountAmount = Math.round(
-        (grossTotalCalculated * discountInput) / 100,
-      );
+      calculatedDiscountAmount = Math.round((grossTotalCalculated * discountInput) / 100);
     } else {
       calculatedDiscountAmount = discountInput;
     }
 
-    const netTotalCalculated =
-      Number(totalAmount) ||
-      Math.max(0, Math.round(grossTotalCalculated - calculatedDiscountAmount));
+    const netGrandTotal = Number(totalAmount) || Math.max(0, Math.round(grossTotalCalculated - calculatedDiscountAmount));
 
-    // =====================================================================
-    // C. Format incoming properties to align cleanly with your strict sub-document `invoiceItemSchema`
-    // =====================================================================
-    const dbFormattedItems = processingItems.map((item) => {
-      const parsedFramePrice = Number(item.framePrice || 0);
-      const parsedLensPrice = Number(item.lensPrice || 0);
-      const calculatedItemSubtotal = parsedFramePrice + parsedLensPrice;
-
-      return {
-        category: item.category,
-        subCategory: item.subCategory || "General",
-        frameProduct: item.frameProduct || item.frameId || null,
-        productName: item.productName,
-        framePrice: parsedFramePrice,
-        lensType: item.lensType || "Standard Non-Powered",
-        lensFeatures: item.lensFeatures || "None",
-        lensPrice: parsedLensPrice,
-        itemSubtotal: Number(item.itemSubtotal) || calculatedItemSubtotal,
-        rightEyePower: {
-          sph: String(item.rightEyePower?.sph || "0.00"),
-          cyl: String(item.rightEyePower?.cyl || "0.00"),
-          axis: String(item.rightEyePower?.axis || "0"),
-          add: String(item.rightEyePower?.add || "0.00"),
-          pd: String(item.rightEyePower?.pd || "60"),
-        },
-        leftEyePower: {
-          sph: String(item.leftEyePower?.sph || "0.00"),
-          cyl: String(item.leftEyePower?.cyl || "0.00"),
-          axis: String(item.leftEyePower?.axis || "0"),
-          add: String(item.leftEyePower?.add || "0.00"),
-          pd: String(item.leftEyePower?.pd || "60"),
-        },
-      };
-    });
-
-    const newInvoice = new invoiceModel({
+    // Constructing document according to counterSalesInvoice specification rules
+    const newInvoice = new counterSalesInvoiceModel({
       invoiceNumber: generatedInvoiceNum,
-      patientName: patientName.toUpperCase(),
-      patientMobile: fullMobileNum,
-      discount: Math.round(calculatedDiscountAmount),
-      totalAmount: netTotalCalculated,
-      paymentMode: paymentMode || "Cash",
-      items: dbFormattedItems,
+      customer: {
+        name: patientName.toUpperCase(),
+        phone: fullMobileNum,
+      },
+      items: processingItems,
+      subTotal: grossTotalCalculated,
+      taxAmount: processingItems.reduce((acc, curr) => acc + (curr.total * (curr.taxRate / 100)), 0),
+      grandTotal: netGrandTotal,
+      paymentMethod: paymentMode || "Cash",
+      advanceAmount: Number(advanceAmount || 0), 
+      // NOTE: balanceAmount and status status hooks manage themselves via your schema's pre-save hook automatically!
     });
 
     await newInvoice.save();
 
-    const prescriptionLineItem = dbFormattedItems.find(
+    // Auto-save clinical prescription profiles when valid optical inventory records match
+    const prescriptionLineItem = processingItems.find(
       (i) =>
         i.category === "EYE_GLASS" ||
         i.category === "POWERED_GLASS" ||
@@ -467,8 +443,7 @@ export const createInStoreInvoice = async (req, res) => {
     );
 
     if (prescriptionLineItem) {
-      const selectedLensTypeString =
-        prescriptionLineItem.lensType || lensType || "Standard Non-Powered";
+      const selectedLensTypeString = prescriptionLineItem.lensType || lensType || "Standard Non-Powered";
       const newPrescription = new prescriptionModel({
         patientName: patientName.toUpperCase(),
         patientMobile: fullMobileNum,
@@ -480,8 +455,8 @@ export const createInStoreInvoice = async (req, res) => {
       await newPrescription.save();
     }
 
-    // F. Auto-Deduct Stock Management Pipeline
-    for (const item of dbFormattedItems) {
+    // Auto-Deduct Stock Pipeline
+    for (const item of processingItems) {
       const activeFrameId = item.frameProduct;
       if (activeFrameId && mongoose.Types.ObjectId.isValid(activeFrameId)) {
         await productModel.findByIdAndUpdate(activeFrameId, {
@@ -520,9 +495,12 @@ export const createInStoreInvoice = async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Invoice ${generatedInvoiceNum} created successfully with item arrays stored!`,
+      message: `Invoice ${generatedInvoiceNum} created successfully under counter logs!`,
       invoiceNumber: generatedInvoiceNum,
-      totalAmount: netTotalCalculated,
+      grandTotal: netGrandTotal,
+      advanceAmount: newInvoice.advanceAmount,
+      balanceDue: newInvoice.balanceAmount,
+      status: newInvoice.status
     });
   } catch (error) {
     console.error("Retail Invoicing Processing Fault:", error);
@@ -560,7 +538,7 @@ export const getDailyAccountingMetrics = async (req, res) => {
       },
       paymentStatusTotals: {
         paidRevenue: 0,
-        unpaidRevenue: 0,
+        unpaidRevenue: 0, // Outlines balances remaining to collect
       },
       prescriptionsFiledToday: prescriptionsTodayCount,
     };
@@ -599,24 +577,32 @@ export const getDailyAccountingMetrics = async (req, res) => {
       });
     }
 
-    const retailInvoicesToday = await invoiceModel.find({
+    // Query counter sales collections for today's data metrics 
+    const retailInvoicesToday = await counterSalesInvoiceModel.find({
       createdAt: { $gte: startOfToday, $lte: endOfToday },
     });
 
     financialSummary.totalInvoicesCount += retailInvoicesToday.length;
 
     retailInvoicesToday.forEach((bill) => {
-      const billValue = Number(bill.totalAmount || 0);
-      financialSummary.grossRevenueToday += billValue;
-      financialSummary.paymentStatusTotals.paidRevenue += billValue;
+      const grandTotalValue = Number(bill.grandTotal || 0);
+      const advanceCollected = Number(bill.advanceAmount || 0);
+      const remainingBalance = Number(bill.balanceAmount || 0);
 
-      const mode = String(bill.paymentMode || "Cash").toLowerCase();
+      // Total daily billing expectations
+      financialSummary.grossRevenueToday += grandTotalValue;
+      
+      // Actual cash-in-hand collected goes to paid status; credit goes to unpaid status
+      financialSummary.paymentStatusTotals.paidRevenue += advanceCollected;
+      financialSummary.paymentStatusTotals.unpaidRevenue += remainingBalance;
+
+      const mode = String(bill.paymentMethod || "Cash").toLowerCase();
       if (mode === "upi") {
-        financialSummary.paymentMethodBreakdown.store_upi += billValue;
+        financialSummary.paymentMethodBreakdown.store_upi += advanceCollected;
       } else if (mode === "card") {
-        financialSummary.paymentMethodBreakdown.store_card += billValue;
+        financialSummary.paymentMethodBreakdown.store_card += advanceCollected;
       } else {
-        financialSummary.paymentMethodBreakdown.store_cash += billValue;
+        financialSummary.paymentMethodBreakdown.store_cash += advanceCollected;
       }
     });
 

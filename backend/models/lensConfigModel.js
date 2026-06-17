@@ -7,12 +7,17 @@ const lensConfigSchema = new mongoose.Schema({
     unique: true, 
     trim: true 
   },
-  price: { 
+  sellingprice: { 
     type: Number, 
     required: true, 
     min: 0 
   },
-  category: { 
+  costprice: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  category  : { 
     type: String, 
     required: true, 
     enum: ['LENS_TYPE', 'LENS_FEATURE'],

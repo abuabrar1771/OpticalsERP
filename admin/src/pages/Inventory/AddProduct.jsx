@@ -23,7 +23,6 @@ const AddProduct = ({ token }) => {
     description: "",
     price: "",
     currency: "INR",
-    stock: "",
     minStockAlert: "3",
     cgst: "0",
     sgst: "0",
@@ -64,7 +63,6 @@ const AddProduct = ({ token }) => {
     "SPX",
   ].sort();
 
-  // Dynamic Split Brand Catalog Matrix
   const BRAND_COLLECTIONS = {
     FRAMES: [
       "EYECON",
@@ -93,10 +91,7 @@ const AddProduct = ({ token }) => {
   };
   
   const TAX_RATES = ["0", "2.5", "6", "9", "12"];
-
-  // Case-insensitive clean utility flag
-  const isContactLens = 
-    category && category.toLowerCase().includes("contact");
+  const isContactLens = category && category.toLowerCase().includes("contact");
 
   useEffect(() => {
     const fetchGeneratedSKU = async () => {
@@ -124,7 +119,7 @@ const AddProduct = ({ token }) => {
       ...prev,
       category: selectedCategory,
       subCategory: firstSub,
-      brand: "", // Reset brand selection
+      brand: "", 
     }));
   };
 
@@ -162,7 +157,7 @@ const AddProduct = ({ token }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const toastId = toast.loading("Uploading product...");
+    const toastId = toast.loading("Uploading product configuration...");
     const backendUrl = "http://localhost:4000"; 
 
     try {
@@ -177,7 +172,7 @@ const AddProduct = ({ token }) => {
       data.append("currency", formData?.currency || "INR");
       data.append("description", formData?.description || "");
       data.append("minStockAlert", formData?.minStockAlert || "3");
-      data.append("stock", formData?.stock || "0"); 
+      data.append("stock", "0"); // 🌟 Forces initial master ledger entry to 0 pending purchase flow
       data.append("cgst", formData?.cgst || "0");
       data.append("sgst", formData?.sgst || "0");
 
@@ -219,10 +214,9 @@ const AddProduct = ({ token }) => {
 
       if (response.data && response.data.success) {
         toast.dismiss(toastId); 
-        toast.success("Added Product Details Successfully!");
+        toast.success("Product Directory Entry Created Successfully!");
 
         setColor("");
-
         const lastSku = response.data.sku || formData.sku;
         const lastNumber = parseInt(lastSku.split("-")[1]) || 0;
         const nextSku = `SO-${(lastNumber + 1).toString().padStart(4, "0")}`;
@@ -259,7 +253,7 @@ const AddProduct = ({ token }) => {
             Add New Optical Product
           </h2>
           <p className="text-sm text-slate-500">
-            Manage your SuperOpticals inventory aligned with DB Schema rules.
+            Configure catalogs inside the Master Ledger directory. Quantities are managed separately via Purchase Operations.
           </p>
         </div>
 
@@ -306,7 +300,7 @@ const AddProduct = ({ token }) => {
           </section>
 
           {/* Categorization and Base Parameters */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700">
                 Category
@@ -348,7 +342,6 @@ const AddProduct = ({ token }) => {
               </select>
             </div>
             
-            {/* BRAND CONTAINER */}
             <div>
               <label className="block text-sm font-medium text-slate-700">
                 Product Brand
@@ -374,7 +367,7 @@ const AddProduct = ({ token }) => {
 
             <div>
               <label className="block text-sm font-medium text-slate-700">
-                Price (INR)
+                Selling Price (INR)
               </label>
               <input
                 type="number"
@@ -388,20 +381,6 @@ const AddProduct = ({ token }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700">
-                Stock Units
-              </label>
-              <input
-                type="number"
-                name="stock"
-                value={formData.stock}
-                onChange={handleChange}
-                className="w-full mt-1 p-2.5 border border-slate-500 rounded-lg"
-                required
-                placeholder="3"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
                 Min Stock Alert
               </label>
               <input
@@ -410,11 +389,12 @@ const AddProduct = ({ token }) => {
                 value={formData.minStockAlert}
                 onChange={handleChange}
                 className="w-full mt-1 p-2.5 border border-slate-500 rounded-lg"
+                placeholder="3"
               />
             </div>
           </section>
 
-          {/* Technical Specifications Subform (AUTOMATICALLY HIDDEN FOR CONTACT LENSES) */}
+          {/* Technical Specifications Subform */}
           {!isContactLens && (
             <section className="p-5 bg-slate-50 rounded-xl space-y-4 border border-slate-100">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -508,7 +488,7 @@ const AddProduct = ({ token }) => {
                   )}
                 </div>
 
-                {/* Physical Frame Measurements Block */}
+                {/* Measurements Box */}
                 <div className="col-span-2 md:col-span-4 grid grid-cols-3 gap-4 pt-4 border-t border-dashed border-slate-200">
                   <div>
                     <label className="text-xs text-slate-500 font-semibold">
@@ -663,7 +643,7 @@ const AddProduct = ({ token }) => {
             type="submit"
             className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-black transition-all shadow-lg active:scale-[0.98]"
           >
-            Confirm and Add to Inventory
+            Confirm and Add to Inventory Directory
           </button>
         </div>
       </form>

@@ -88,7 +88,6 @@ const ThermalReceipt = ({ invoiceData }) => {
 
   return (
     <div className="bg-slate-100 p-3 sm:p-4 rounded-xl border border-gray-300 max-w-sm mx-auto my-2 shadow-sm">
-      {/* Hidden layout template referenced explicitly by innerHTML capture hooks */}
       <div id="thermal-print-area" className="hidden">
         <div className="text-center">
           <h2 className="font-bold" style={{ fontSize: '16px', margin: '0 0 2px 0' }}>SUPER OPTICALS</h2>
@@ -104,6 +103,7 @@ const ThermalReceipt = ({ invoiceData }) => {
           <div><strong>Date:</strong> {new Date(invoiceData.date || Date.now()).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</div>
           <div><strong>Patient:</strong> {invoiceData.patientName}</div>
           <div><strong>Mobile:</strong> {invoiceData.patientMobile}</div>
+          <div><strong>Status:</strong> <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{invoiceData.status}</span></div>
         </div>
 
         <div className="divider"></div>
@@ -146,14 +146,22 @@ const ThermalReceipt = ({ invoiceData }) => {
 
         <div className="divider"></div>
 
-        <div style={{ fontSize: '12px', paddingLeft: '20mm' }}>
+        <div style={{ fontSize: '12px', paddingLeft: '15mm' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Discount:</span>
             <span className="font-mono">-₹{invoiceData.discount || 0}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '13px', marginTop: '2px' }}>
-            <span>NET TOTAL:</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+            <span>Net Total:</span>
             <span className="font-mono">₹{invoiceData.totalAmount}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a' }}>
+            <span>Paid Upfront:</span>
+            <span className="font-mono">₹{invoiceData.advanceAmount}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '13px', marginTop: '2px', color: invoiceData.balanceDue > 0 ? '#dc2626' : '#16a34a' }}>
+            <span>BALANCE DUE:</span>
+            <span className="font-mono">₹{invoiceData.balanceDue}</span>
           </div>
         </div>
 
@@ -218,6 +226,7 @@ const StoreBilling = ({ backendUrl, token }) => {
 
   const [discount, setDiscount] = useState(0); 
   const [paymentMode, setPaymentMode] = useState('Cash');
+  const [advancePaid, setAdvancePaid] = useState(0);
 
   const [frameSuggestions, setFrameSuggestions] = useState([]);
   const [frameActiveIndex, setFrameActiveIndex] = useState(-1);
@@ -237,6 +246,11 @@ const StoreBilling = ({ backendUrl, token }) => {
     selectedProductCategory === 'EYE_GLASS' || 
     selectedProductCategory === 'POWERED_GLASS' ||
     selectedProductCategory === 'CONTACT_LENS';
+
+  // 🌟 CRUCIAL RULES LAYER: Check if checkout requires prescription capabilities
+  const isAdvanceFeatureAllowed = items.some(
+    i => i.category === 'EYE_GLASS' || i.category === 'POWERED_GLASS'
+  );
 
   useEffect(() => {
     const availableSubs = categoryMap[selectedProductCategory] || [];
@@ -482,6 +496,21 @@ const StoreBilling = ({ backendUrl, token }) => {
     return Math.max(0, Math.round(gross - calculatedDiscountAmount));
   };
 
+  const netTotalBillAmount = calculateTotalBill();
+  
+  // 🌟 DYNAMIC RESTRICTION MATH RENDERING LOOP
+  const activeUpfrontAdvanceValue = isAdvanceFeatureAllowed ? Number(advancePaid || 0) : netTotalBillAmount;
+  const balanceOutstandingDue = Math.max(0, netTotalBillAmount - activeUpfrontAdvanceValue);
+
+  // Fallback cleanup if items structure updates changes permissions boundaries
+  useEffect(() => {
+    if (!isAdvanceFeatureAllowed) {
+      setAdvancePaid(0);
+    } else if (advancePaid > netTotalBillAmount) {
+      setAdvancePaid(netTotalBillAmount);
+    }
+  }, [netTotalBillAmount, isAdvanceFeatureAllowed]);
+
   const selectCustomerItem = (cust) => {
     setPatientName(cust.patientName.toUpperCase()); 
     setMobileNum(cust.patientMobile.replace('+91', ''));
@@ -591,6 +620,8 @@ const StoreBilling = ({ backendUrl, token }) => {
       const computedDiscountCashValue = Math.round((grossSubtotal * Number(discount)) / 100);
       const computedTotalAmount = Math.max(0, Math.round(grossSubtotal - computedDiscountCashValue));
 
+      const derivedProductionStatus = balanceOutstandingDue > 0 ? 'Pending' : 'Delivered';
+
       const payload = {
         invoiceNumber: "INV-" + Date.now().toString().slice(-6),
         patientName: patientName.toUpperCase(),
@@ -598,6 +629,9 @@ const StoreBilling = ({ backendUrl, token }) => {
         paymentMode: paymentMode,
         discount: computedDiscountCashValue,
         totalAmount: computedTotalAmount,
+        advanceAmount: Number(activeUpfrontAdvanceValue || 0),
+        balanceDue: Number(balanceOutstandingDue || 0),
+        status: derivedProductionStatus,
         
         items: items.map(i => ({
           category: i.category,
@@ -617,7 +651,7 @@ const StoreBilling = ({ backendUrl, token }) => {
       const res = await axios.post(`${backendUrl}/api/inventory/create-invoice`, payload, { headers: { token } });
       
       if (res.data.success) {
-        toast.success("Invoice generated & warehouse stock records synchronized successfully!");
+        toast.success(`Invoice saved successfully with state profile: ${derivedProductionStatus.toUpperCase()}`);
         
         setActivePrintedInvoice({
           ...payload,
@@ -629,6 +663,7 @@ const StoreBilling = ({ backendUrl, token }) => {
         setMobileNum(''); 
         setPatientName(''); 
         setDiscount(0);
+        setAdvancePaid(0);
         setRightEye({ ...defaultEyePower });
         setLeftEye({ ...defaultEyePower });
       } else {
@@ -644,11 +679,10 @@ const StoreBilling = ({ backendUrl, token }) => {
     <div className="p-2 sm:p-4 bg-slate-50 min-h-screen font-sans w-full" onKeyDown={handleFormKeyDown}>
       <ToastContainer position="top-right" compact />
       
-      {/* Container wrapper shifts padding safely from p-8 (desktop) down to p-4 (mobile) */}
       <div className="max-w-6xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-lg border border-gray-200">
         
         <h1 className="text-base sm:text-lg md:text-2xl font-bold mb-4 sm:mb-6 text-gray-800 border-b pb-3 sm:pb-4 uppercase tracking-wider flex items-center gap-2">
-          🛒 Optical POS Desk
+          🛒 SALES INVOICE
         </h1>
 
         {/* PROFILE IDENTIFICATION BANNER MODULE */}
@@ -769,7 +803,7 @@ const StoreBilling = ({ backendUrl, token }) => {
               </div>
             </div>
 
-            {/* UNIFIED SEARCH ROW: STAYS RIGID FOR OVERLAYS */}
+            {/* UNIFIED SEARCH ROW */}
             <div key={selectedProductCategory} className="bg-white p-3 sm:p-4 rounded-lg border border-gray-300 shadow-sm relative z-30 space-y-2">
               <label className="block text-[10px] sm:text-xs font-black text-blue-950 uppercase">
                 🔍 Search Catalog Item Name or SKU
@@ -794,11 +828,11 @@ const StoreBilling = ({ backendUrl, token }) => {
                     onClick={handleAddItemToGrid}
                     className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded text-xs uppercase tracking-wider transition-colors shadow flex items-center justify-center gap-1 shrink-0 outline-none"
                   >
-                    ➕ Add Item
+                    塾 Add Item
                   </button>
                 )}
 
-                {/* LIVE AUTOMATIC POPUP MATCH SELECTION CANVAS */}
+                {/* LIVE POPUP MATCH SELECTION CANVAS */}
                 {frameSuggestions.length > 0 && (
                   <div ref={frameScrollRef} className="absolute left-0 right-0 top-full mt-2 bg-white border border-blue-400 rounded-lg max-h-60 overflow-y-auto divide-y divide-gray-200 shadow-2xl z-50 p-1">
                     <div className="sticky top-0 bg-blue-50 text-[9px] uppercase tracking-wider font-extrabold text-blue-800 p-2 flex justify-between items-center rounded-t border-b border-blue-200 z-10">
@@ -854,7 +888,7 @@ const StoreBilling = ({ backendUrl, token }) => {
             {/* SPLIT SCREEN ROW: VISION PARAMETERS & CORE GLASS DROPDOWN */}
             <div className={`grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch ${isLensConfigRequired ? 'opacity-100' : 'opacity-30 pointer-events-none select-none'}`}>
               
-              {/* LEFT SIDE: DIOPTER METRICS (Optimized for Mobile Grids) */}
+              {/* LEFT SIDE: DIOPTER METRICS */}
               <div className="lg:col-span-7 bg-white p-2.5 sm:p-3 border rounded-lg border-gray-300 shadow-sm">
                 <p className="text-xs sm:text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">👁️ Vision Metrics</p>
                 
@@ -1020,7 +1054,6 @@ const StoreBilling = ({ backendUrl, token }) => {
               No products added yet. Click "Commit Item" above.
             </div>
           ) : (
-            /* FIX: Wrapped in overflow-x-auto container so layout won't squeeze on small viewport widths */
             <div className="overflow-x-auto bg-white">
               <table className="w-full text-left border-collapse min-w-[750px]">
                 <thead>
@@ -1078,7 +1111,7 @@ const StoreBilling = ({ backendUrl, token }) => {
         </div>
 
         {/* ACCOUNTING CONTROL ASSIGNMENT PANEL */}
-        <div className="border-t pt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-center mb-6">
+        <div className="border-t pt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-center mb-6">
           <div>
             <label className="block text-[10px] sm:text-xs font-bold text-gray-600 uppercase mb-1">Gross subtotal (₹)</label>
             <input type="number" value={getGrossSubtotal()} readOnly className="w-full bg-gray-100 border rounded px-3 py-1.5 text-xs sm:text-sm font-mono font-black text-slate-700 outline-none" />
@@ -1100,13 +1133,38 @@ const StoreBilling = ({ backendUrl, token }) => {
                     if (numValue <= 100) setDiscount(numValue);
                   }
                 }} 
-                data-next="paymentChannelSelect"
+                data-next={isAdvanceFeatureAllowed ? "advancePaidInput" : "paymentChannelSelect"} 
                 placeholder="0"
                 className="w-full border rounded pl-3 pr-8 py-1.5 text-xs sm:text-sm font-mono font-bold text-rose-600 border-gray-300 bg-rose-50/10 outline-none" 
               />
               <span className="absolute right-3 text-xs sm:text-sm font-bold text-rose-500 pointer-events-none">%</span>
             </div>
           </div>
+
+          {/* 🌟 CONDITIONAL RENDERING PANEL LAYER FOR ADVANCE COLLECTION */}
+          {isAdvanceFeatureAllowed ? (
+            <div>
+              <label className="block text-[10px] sm:text-xs font-bold text-blue-900 uppercase mb-1">💸 Upfront Advance Collected</label>
+              <input 
+                type="number"
+                name="advancePaidInput"
+                value={advancePaid === 0 ? '' : advancePaid}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (val <= netTotalBillAmount) setAdvancePaid(val);
+                }}
+                placeholder="0.00"
+                className="w-full border rounded px-3 py-1.5 text-xs sm:text-sm font-mono font-bold border-blue-300 text-blue-700 bg-blue-50/20 outline-none"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-[10px] sm:text-xs font-bold text-gray-400 uppercase mb-1">💸 Upfront Advance Collected</label>
+              <div className="w-full bg-gray-50 border border-gray-200 text-gray-400 rounded px-3 py-1.5 text-xs sm:text-sm font-mono italic select-none">
+                Locked (Retail Stock Only)
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-[10px] sm:text-xs font-bold text-gray-600 uppercase mb-1">Settlement Channel</label>
@@ -1121,13 +1179,6 @@ const StoreBilling = ({ backendUrl, token }) => {
               <option value="Card">💳 Card Token</option>
             </select>
           </div>
-
-          <div className="h-full flex items-end">
-            <div className="bg-slate-100 border border-gray-300 p-1.5 rounded w-full flex justify-between items-center px-3 text-xs">
-              <span className="font-bold uppercase text-gray-500 text-[10px]">Total Items:</span>
-              <span className="font-mono font-black text-slate-800">{items.length}</span>
-            </div>
-          </div>
         </div>
 
         {/* PRINTABLE HARDWARE RECEIPTS POPUP ANCHOR */}
@@ -1139,9 +1190,18 @@ const StoreBilling = ({ backendUrl, token }) => {
 
         {/* POS NET INVOICING BANNER SUMMARY PANEL */}
         <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
-          <div className="text-center sm:text-left w-full sm:w-auto">
-            <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Settlement Due Balance</span>
-            <span className="text-xl sm:text-3xl font-extrabold font-mono text-emerald-400">₹{calculateTotalBill()}</span>
+          <div className="flex flex-wrap gap-6 text-center sm:text-left justify-center sm:justify-start w-full sm:w-auto">
+            <div>
+              <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Net Bill Total</span>
+              <span className="text-lg sm:text-2xl font-extrabold font-mono text-white">₹{netTotalBillAmount}</span>
+            </div>
+            <div className="border-l border-slate-700 hidden sm:block"></div>
+            <div>
+              <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Balance Outstanding Due</span>
+              <span className={`text-lg sm:text-2xl font-extrabold font-mono ${balanceOutstandingDue > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                ₹{balanceOutstandingDue}
+              </span>
+            </div>
           </div>
           <button 
             type="button" 

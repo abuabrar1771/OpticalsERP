@@ -6,6 +6,7 @@ import {
   getSingleProduct,
   updateProduct,
   getNextSku,
+  addOpeningStockBatch, // 🌟 1. Imported the missing batch collection logic controller
 } from "../controllers/productController.js";
 import upload from "../middleware/multer.js";
 import adminAuth from "../middleware/adminAuth.js";
@@ -31,7 +32,10 @@ productRouter.post("/remove", adminAuth, removeProduct);
 
 productRouter.get("/list", totalProductList);
 productRouter.get("/single", getSingleProduct);
-
 productRouter.get("/next-sku", getNextSku);
+
+// 🌟 2. ADDED THIS MISSING ENDPOINT LINK
+// Full target matching endpoint map path: http://localhost:4000/api/product/opening-stock-batch
+productRouter.post("/opening-stock-batch", addOpeningStockBatch);
 
 export default productRouter;

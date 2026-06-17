@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import TopMenuBar from "./components/TopMenuBar"; // 🌟 Traditional Dropdown Menu Bar
-import HomePage from "./pages/HomePage"; 
+import TopMenuBar from "./components/TopMenuBar";
+import HomePage from "./components/HomePage";
 
 import Login from "./components/Login";
 import LowStockAlerts from "./components/LowStockAlerts";
@@ -11,25 +11,24 @@ import LowStockAlerts from "./components/LowStockAlerts";
 import AddProduct from "./pages/Inventory/AddProduct";
 import GetSingleProduct from "./pages/Inventory/GetSingleProduct";
 import ProductList from "./pages/Inventory/ProductList";
-import StoreBilling from "./pages/Inventory/StoreBilling"; 
-import Orders from "./pages/Orders"; 
+import StoreBilling from "./pages/Inventory/StoreBilling";
 import LensConfig from "./pages/LensConfig";
-import CustomerDashboard from "./pages/CustomerDashboard"; 
+import CustomerDashboard from "./pages/CustomerDashboard";
 import BillWiseSales from "./pages/BillWiseSales";
 import PurchaseEntry from "./pages/PurchaseEntry";
-
-// 🌟 NEW SEPARATED ACCOUNTING MODULE IMPORTS
+import CreateOrder from "./pages/CreateOrder";
 import PaymentVoucher from "./pages/PaymentVoucher";
 import ReceiptVoucher from "./pages/ReceiptVoucher";
 import DaybookRegistry from "./pages/DaybookRegistry";
 import ProfitLossAnalyzer from "./pages/ProfitLossAnalyzer";
+import OpeningStockEntry from "./pages/Inventory/OpeningStockEntry";
+import SalesProfitReport from "./pages/SalesProfit"; // 🌟 FIXED: Changed import name to match the Route element name below
 
-// Make sure your imports for Toastify remain at the top
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
-export const currencySymbol = '₹';
+export const currencySymbol = "₹";
 
 export const categoryMap = {
   EYE_GLASS: ["Full-Rim", "Half-Rim", "Rimless", "Kids"],
@@ -61,17 +60,15 @@ export const colorOptions = [
 
 const App = () => {
   const [token, setToken] = useState(
-    localStorage.getItem("token") ? localStorage.getItem("token") : "",
+    sessionStorage.getItem("token") ? sessionStorage.getItem("token") : "",
   );
 
   useEffect(() => {
-    localStorage.setItem("token", token);
+    sessionStorage.setItem("token", token);
   }, [token]);
 
   return (
     <div className="bg-slate-50 min-h-screen flex flex-col w-full text-slate-800 antialiased">
-      
-      {/* Toast Notification Container Config */}
       <ToastContainer
         autoClose={1000}
         hideProgressBar={false}
@@ -81,32 +78,39 @@ const App = () => {
         pauseOnFocusLoss
         draggable
         pauseOnHover
+        style={{ zIndex: 99999 }}
       />
 
       {/* PUBLIC AUTH GATING LAYER */}
       {token === "" ? (
         <main className="flex-1 flex justify-center items-center bg-cyan-100">
           <Routes>
-            <Route path="*" element={<Login setToken={setToken} />} />
+            <Route
+              path="*"
+              element={<Login setToken={setToken} backendUrl={backendUrl} />}
+            />
           </Routes>
         </main>
       ) : (
         /* PROTECTED DESKTOP ERP ENVIRONMENT FRAMEWORK */
         <>
-          {/* Traditional Dropdown Selection Controller Menu Bar */}
           <TopMenuBar />
           <hr className="border-slate-300" />
 
-          {/* FIX: Switched from rigid padding p-6 to adaptive screen padding p-3 sm:p-6 */}
           <main className="flex-1 p-3 sm:p-6 w-full overflow-x-hidden overflow-y-visible">
             <Routes>
-              <Route path="/" element={<Navigate to="/HomePage" replace />} />
-              
+              <Route
+                path="/HomePage"
+                element={<HomePage backendUrl={backendUrl} token={token} />}
+              />
+
               <Route
                 path="/customer-dashboard"
-                element={<CustomerDashboard backendUrl={backendUrl} token={token} />}
+                element={
+                  <CustomerDashboard backendUrl={backendUrl} token={token} />
+                }
               />
-              
+
               <Route
                 path="/billing"
                 element={<StoreBilling backendUrl={backendUrl} token={token} />}
@@ -114,12 +118,16 @@ const App = () => {
 
               <Route
                 path="/BillWiseSales"
-                element={<BillWiseSales backendUrl={backendUrl} token={token} />}
+                element={
+                  <BillWiseSales backendUrl={backendUrl} token={token} />
+                }
               />
 
               <Route
                 path="/purchaseentry"
-                element={<PurchaseEntry backendUrl={backendUrl} token={token} />}
+                element={
+                  <PurchaseEntry backendUrl={backendUrl} token={token} />
+                }
               />
 
               <Route
@@ -128,44 +136,68 @@ const App = () => {
               />
               <Route
                 path="/getsingleproduct"
-                element={<GetSingleProduct backendUrl={backendUrl} token={token} />}
+                element={
+                  <GetSingleProduct backendUrl={backendUrl} token={token} />
+                }
+              />
+              <Route
+                path="/opening-stock"
+                element={
+                  <OpeningStockEntry backendUrl={backendUrl} token={token} />
+                }
               />
               <Route
                 path="/productlist"
                 element={<ProductList backendUrl={backendUrl} token={token} />}
               />
               <Route
-                path="/orders"
-                element={<Orders backendUrl={backendUrl} token={token} />}
+                path="/CreateOrder"
+                element={<CreateOrder backendUrl={backendUrl} token={token} />}
               />
-              <Route 
-                path="/updateLensPrice" 
-                element={<LensConfig backendUrl={backendUrl} token={token} />} 
-              />
-
-              <Route 
-                path="/payment-voucher" 
-                element={<PaymentVoucher backendUrl={backendUrl} token={token} />} 
-              />
-              <Route 
-                path="/receipt-voucher" 
-                element={<ReceiptVoucher backendUrl={backendUrl} token={token} />} 
+              <Route
+                path="/updateLensPrice"
+                element={<LensConfig backendUrl={backendUrl} token={token} />}
               />
 
-              <Route 
-                path="/daybook-registry" 
-                element={<DaybookRegistry backendUrl={backendUrl} token={token} />} 
+              <Route
+                path="/payment-voucher"
+                element={
+                  <PaymentVoucher backendUrl={backendUrl} token={token} />
+                }
               />
-              <Route 
-                path="/profit-loss" 
-                element={<ProfitLossAnalyzer backendUrl={backendUrl} token={token} />} 
+              <Route
+                path="/receipt-voucher"
+                element={
+                  <ReceiptVoucher backendUrl={backendUrl} token={token} />
+                }
               />
 
-              <Route 
-                path="/LowStockAlerts" 
-                element={<LowStockAlerts backendUrl={backendUrl} token={token} />} 
+              <Route
+                path="/daybook-registry"
+                element={
+                  <DaybookRegistry backendUrl={backendUrl} token={token} />
+                }
+              />
+              <Route
+                path="/profit-loss"
+                element={
+                  <ProfitLossAnalyzer backendUrl={backendUrl} token={token} />
+                }
+              />
+
+              <Route
+                path="/LowStockAlerts"
+                element={
+                  <LowStockAlerts backendUrl={backendUrl} token={token} />
+                }
               />
               
+              {/* 🌟 FIXED: Route path changed to matching lowercase string "/sales-profit" */}
+              <Route 
+                path="/sales-profit" 
+                element={<SalesProfitReport backendUrl={backendUrl} token={token} />} 
+              />
+
               <Route path="*" element={<Navigate to="/HomePage" replace />} />
             </Routes>
           </main>

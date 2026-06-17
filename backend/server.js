@@ -78,14 +78,19 @@ app.use(cors({
     'https://sacrifice-ravishing-nail.ngrok-free.dev' // live ngrok tunnel
   ],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'token'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 }));
 
 // Explicitly ensure OPTIONS pre-flights exit with a clear green light
 app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "http://localhost:5174");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, token"); // Added 'token' here
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  
+  // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
-    return cors()(req, res, next);
+    return res.sendStatus(200);
   }
   next();
 });
