@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
+import axios from "axios";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 import { backendUrl } from "../App";
 
 // Force Axios to send cookies automatically for every dashboard session request
@@ -9,37 +9,47 @@ axios.defaults.withCredentials = true;
 
 const Login = ({ setToken }) => {
   const navigate = useNavigate();
-  const [mobileNum, setMobileNum] = useState('');
-  const [password, setPassword] = useState('');
+  const [mobileNum, setMobileNum] = useState("");
+  const [password, setPassword] = useState("");
 
   const onSubmitHandler = async (e) => {
     e.preventDefault();
     try {
       // 🌟 ROBUST CLEANING: Strip spaces, dashes, parentheses
-      const cleanMobile = mobileNum.replace(/\s+/g, '').replace(/[-()]/g, '');
-      
+      const cleanMobile = mobileNum.replace(/\s+/g, "").replace(/[-()]/g, "");
+
       // Standardize to your exact backend format (+91xxxxxxxxxx)
-      const fullMobileNum = cleanMobile.startsWith('+91') 
-        ? cleanMobile 
-        : cleanMobile.startsWith('91') 
-          ? `+${cleanMobile}` 
+      const fullMobileNum = cleanMobile.startsWith("+91")
+        ? cleanMobile
+        : cleanMobile.startsWith("91")
+          ? `+${cleanMobile}`
           : `+91${cleanMobile}`;
-      
-      const response = await axios.post(backendUrl + '/api/user/login', {
-        mobileNum: fullMobileNum, 
-        password
-      });
+
+      const response = await axios.post(
+        backendUrl + "/api/user/login",
+        {
+          mobileNum: fullMobileNum,
+          password: password, // Added colon/comma syntax safety
+        },
+        {
+          headers: {
+            "ngrok-skip-browser-warning": "true",
+          },
+        },
+      );
 
       if (response.data.success) {
         // Double-Check Security: Verify that the account profile has the proper Admin designation
-        if (response.data.user && response.data.user.role === 'admin') {
-          setToken(true); 
-          localStorage.setItem('user', JSON.stringify(response.data.user));
+        if (response.data.user && response.data.user.role === "admin") {
+          setToken(true);
+          localStorage.setItem("user", JSON.stringify(response.data.user));
           toast.success("Welcome back, Admin!");
-          navigate('/'); 
+          navigate("/");
         } else {
           // Explicit Block: If the user credentials exist but they aren't admin, deny access immediately
-          toast.error("Access denied. This account is not authorized as an Administrator.");
+          toast.error(
+            "Access denied. This account is not authorized as an Administrator.",
+          );
         }
       } else {
         toast.error(response.data.message);
@@ -49,7 +59,7 @@ const Login = ({ setToken }) => {
       toast.error(error.response?.data?.message || error.message);
     }
   };
-    
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <form
@@ -75,7 +85,7 @@ const Login = ({ setToken }) => {
             required
           />
         </div>
-        
+
         <input
           type="password"
           value={password}
@@ -84,7 +94,7 @@ const Login = ({ setToken }) => {
           placeholder="Password"
           required
         />
-        
+
         <button className="bg-black text-white font-bold py-2.5 mt-2 rounded w-full hover:bg-gray-800 active:scale-[0.99] transition-all uppercase tracking-widest text-xs">
           Login to Dashboard
         </button>
