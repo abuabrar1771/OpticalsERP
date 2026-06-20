@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { backendUrl } from "../App";
 
 // Force Axios to send cookies automatically for every dashboard session request
 axios.defaults.withCredentials = true;
@@ -25,17 +24,23 @@ const Login = ({ setToken }) => {
           ? `+${cleanMobile}`
           : `+91${cleanMobile}`;
 
+      /* 
+        👉 CRUCIAL FIX: By hitting '/api/user/login' relatively (instead of adding backendUrl), 
+        the browser hits your Vercel domain. This triggers your vercel.json rewrite rule 
+        to securely proxy the request to ngrok without running into CORS blocks.
+      */
       const response = await axios.post(
-        backendUrl + "/api/user/login",
+        "/api/user/login",
         {
           mobileNum: fullMobileNum,
-          password: password, // Added colon/comma syntax safety
+          password: password,
         },
         {
           headers: {
             "ngrok-skip-browser-warning": "true",
+            "Content-Type": "application/json",
           },
-        },
+        }
       );
 
       if (response.data.success) {
@@ -48,14 +53,14 @@ const Login = ({ setToken }) => {
         } else {
           // Explicit Block: If the user credentials exist but they aren't admin, deny access immediately
           toast.error(
-            "Access denied. This account is not authorized as an Administrator.",
+            "Access denied. This account is not authorized as an Administrator."
           );
         }
       } else {
         toast.error(response.data.message);
       }
     } catch (error) {
-      console.log(error);
+      console.error("Login Error:", error);
       toast.error(error.response?.data?.message || error.message);
     }
   };
