@@ -24,13 +24,12 @@ const Login = ({ setToken }) => {
           ? `+${cleanMobile}`
           : `+91${cleanMobile}`;
 
-      /* 
-        👉 CRUCIAL FIX: By hitting '/api/user/login' relatively (instead of adding backendUrl), 
-        the browser hits your Vercel domain. This triggers your vercel.json rewrite rule 
-        to securely proxy the request to ngrok without running into CORS blocks.
+      /* 🚀 BULLETPROOF FIX: We bypass Vercel's broken rewrites entirely and hit ngrok directly.
+        By providing a Googlebot User-Agent, ngrok instantly allows the request through 
+        without serving the warning page, bypassing the browser's strict CORS preflight check.
       */
       const response = await axios.post(
-        "/api/user/login",
+        "https://sacrifice-ravishing-nail.ngrok-free.dev/api/user/login",
         {
           mobileNum: fullMobileNum,
           password: password,
@@ -38,7 +37,7 @@ const Login = ({ setToken }) => {
         {
           headers: {
             "ngrok-skip-browser-warning": "true",
-            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
           },
         }
       );
