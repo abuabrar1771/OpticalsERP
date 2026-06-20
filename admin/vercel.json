@@ -1,12 +1,13 @@
 {
+  "version": 2,
   "rewrites": [
     {
       "source": "/api/:path*",
       "destination": "https://sacrifice-ravishing-nail.ngrok-free.dev/api/:path*"
     },
     {
-      "source": "/(.*)",
-      "destination": "/"
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ]
 }
