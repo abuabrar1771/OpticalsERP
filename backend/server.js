@@ -73,12 +73,13 @@ app.use(cookieParser());
 
 app.use(cors({
   origin: [
-    'http://localhost:5174',   // admin local
-    'http://localhost:4000',   // server local
-    'https://sacrifice-ravishing-nail.ngrok-free.dev' // live ngrok tunnel
+    'http://localhost:5174',                         // Admin Local
+    'http://localhost:4000',                         // Server Local
+    'https://sacrifice-ravishing-nail.ngrok-free.dev', // Live ngrok tunnel
+    'https://opticals-erp.vercel.app'                // Your Vercel Frontend Production
   ],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'token', 'ngrok-skip-browser-warning'], // Added 'token' and ngrok bypass here
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 }));
 
