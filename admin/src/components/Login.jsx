@@ -24,20 +24,21 @@ const Login = ({ setToken }) => {
           ? `+${cleanMobile}`
           : `+91${cleanMobile}`;
 
-      /* 🚀 BULLETPROOF FIX: We bypass Vercel's broken rewrites entirely and hit ngrok directly.
-        By providing a Googlebot User-Agent, ngrok instantly allows the request through 
-        without serving the warning page, bypassing the browser's strict CORS preflight check.
+      /* 🚀 LOCALTUNNEL DIRECT FETCH:
+         We hit the tunnel directly. To bypass Localtunnel's "Tunnel Website Ahead" warning block 
+         and let Axios slide straight through to your Express backend code, we pass the 
+         'Bypass-Tunnel-Reminder' header.
       */
       const response = await axios.post(
-        "https://sacrifice-ravishing-nail.ngrok-free.dev/api/user/login",
+        "https://curvy-books-chew.loca.lt/api/user/login",
         {
           mobileNum: fullMobileNum,
           password: password,
         },
         {
           headers: {
-            "ngrok-skip-browser-warning": "true",
-            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+            "Bypass-Tunnel-Reminder": "true",
+            "Content-Type": "application/json",
           },
         }
       );
