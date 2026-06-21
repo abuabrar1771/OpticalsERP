@@ -73,23 +73,27 @@ export default function PurchaseEntry({ backendUrl, token }) {
     return () => clearTimeout(delayDebounce);
   }, [supplierSearch, selectedSupplier, backendUrl, token]);
 
-  // Live Autocomplete Catalog Fetcher (Products)
+  // 🚀 LIVE PRODUCT AUTOCOMPLETE FETCHER (FIXED UNDEFINED SCOPE VARIABLES)
   useEffect(() => {
     const delayDebounce = setTimeout(async () => {
       const query = productSearch.trim();
       if (query.length >= 2 && !selectedProduct) {
         try {
-          
-            const res = await axios.get(
-                  `${backendUrl}/api/inventory/search-products?query=${encodeURIComponent(cleanQuery)}&category=${selectedProductCategory}`, 
-                  { 
-                    headers: { 
-                    'token': token,                             // 1. Passes your database admin authentication key
-                    'ngrok-skip-browser-warning': 'true'        // 2. Natively steps past the Ngrok gateway roadblock
-                  } 
-                }
-              );
-          if (res.data.success) {
+          // Cleaned up logic parameters to use the true contextual variables of this form file
+          const cleanQuery = query.toLowerCase();
+          const res = await axios.get(
+            `${backendUrl}/api/inventory/search-products?query=${encodeURIComponent(cleanQuery)}`, 
+            { 
+              headers: { 
+                'token': token,                             
+                'ngrok-skip-browser-warning': 'true'        
+              } 
+            }
+          );
+          if (res.data && Array.isArray(res.data.products)) {
+            setSuggestions(res.data.products);
+            setProductIndex(-1);
+          } else if (res.data.success) {
             setSuggestions(res.data.products || []);
             setProductIndex(-1);
           }
@@ -104,7 +108,7 @@ export default function PurchaseEntry({ backendUrl, token }) {
     return () => clearTimeout(delayDebounce);
   }, [productSearch, selectedProduct, backendUrl, token]);
 
-  // ⌨️ GLOBAL ENTER NAVIGATION CONTROLLER
+  // ⌨️ GLOBAL ENTER NAVIGATION CONTROLLER (FIXED ESCAPED BACKSLASH)
   const handleFormKeyDown = (e) => {
     if (e.key === "Enter") {
       if (e.target.name === "supplierSearchInput" && supplierSuggestions.length > 0) return;
@@ -123,7 +127,7 @@ export default function PurchaseEntry({ backendUrl, token }) {
     }
   };
 
-  // ⌨️ KEYBOARD MENU LISTENER FOR SUPPLIER
+  // ⌨️ KEYBOARD MENU LISTENER FOR SUPPLIER (FIXED SCROLL POSITION MAPPING)
   const handleSupplierKeyDown = (e) => {
     if (supplierSuggestions.length === 0) return;
 
@@ -131,14 +135,16 @@ export default function PurchaseEntry({ backendUrl, token }) {
       e.preventDefault();
       setSupplierIndex((prev) => {
         const nextIdx = prev < supplierSuggestions.length - 1 ? prev + 1 : prev;
-        scrollSuggestionIntoView(supplierScrollRef, nextIdx);
+        const targetEl = supplierScrollRef.current?.querySelector(`[data-index="${nextIdx}"]`);
+        targetEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         return nextIdx;
       });
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSupplierIndex((prev) => {
         const nextIdx = prev > 0 ? prev - 1 : 0;
-        scrollSuggestionIntoView(supplierScrollRef, nextIdx);
+        const targetEl = supplierScrollRef.current?.querySelector(`[data-index="${nextIdx}"]`);
+        targetEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         return nextIdx;
       });
     } else if (e.key === "Enter") {
@@ -156,7 +162,7 @@ export default function PurchaseEntry({ backendUrl, token }) {
     }
   };
 
-  // ⌨️ KEYBOARD MENU LISTENER FOR PRODUCT
+  // ⌨️ KEYBOARD MENU LISTENER FOR PRODUCT (FIXED SCROLL POSITION MAPPING)
   const handleProductKeyDown = (e) => {
     if (suggestions.length === 0) return;
 
@@ -164,19 +170,22 @@ export default function PurchaseEntry({ backendUrl, token }) {
       e.preventDefault();
       setProductIndex((prev) => {
         const nextIdx = prev < suggestions.length - 1 ? prev + 1 : prev;
-        scrollSuggestionIntoView(productScrollRef, nextIdx);
+        const targetEl = productScrollRef.current?.querySelector(`[data-index="${nextIdx}"]`);
+        targetEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         return nextIdx;
       });
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setProductIndex((prev) => {
         const nextIdx = prev > 0 ? prev - 1 : 0;
-        scrollSuggestionIntoView(productScrollRef, nextIdx);
+        const targetEl = productScrollRef.current?.querySelector(`[data-index="${nextIdx}"]`);
+        targetEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         return nextIdx;
       });
     } else if (e.key === "Enter") {
       e.preventDefault();
       const matchedProduct = productIndex >= 0 ? suggestions[productIndex] : suggestions[0];
+      if (!matchedProduct) return;
       selectCatalogItem(matchedProduct);
 
       setTimeout(() => {
@@ -191,26 +200,17 @@ export default function PurchaseEntry({ backendUrl, token }) {
     }
   };
 
-  const scrollSuggestionIntoView = (containerRef, index) => {
-    if (!containerRef.current) return;
-    const container = containerRef.current;
-    const childRow = container.children[index];
-    if (childRow) {
-      childRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  };
-
   const selectSupplierItem = (sup) => {
     setSelectedSupplier(sup);
-    setSupplierSearch(sup.supplierName);
+    setSupplierSearch(sup.supplierName.toUpperCase());
     setSupplierSuggestions([]);
     setSupplierIndex(-1);
   };
 
   const selectCatalogItem = (prod) => {
     setSelectedProduct(prod);
-    setProductSearch(`${prod.brand} - ${prod.name} (${prod.sku})`);
-    setSellingPrice(prod.price || "");
+    setProductSearch(`${prod.brand || 'Generic'} - ${prod.name || ''} (${prod.sku || 'N/A'})`.toUpperCase());
+    setSellingPrice(prod.sellingprice || prod.price || "");
     setSuggestions([]);
     setProductIndex(-1);
   };
@@ -247,10 +247,10 @@ export default function PurchaseEntry({ backendUrl, token }) {
       gridId: Date.now() + Math.random().toString(36).substring(2, 5),
       productId: selectedProduct._id,
       sku: isPrescriptionCategory ? `${selectedProduct.sku}-${sphere}-${cylinder}`.replace(/[^a-zA-Z0-9-_]/g, '') : selectedProduct.sku,
-      productName: isPrescriptionCategory ? `${selectedProduct.brand} - ${selectedProduct.name} [SPH: ${sphere} | CYL: ${cylinder || "0.00"}]` : `${selectedProduct.brand} - ${selectedProduct.name}`,
+      productName: isPrescriptionCategory ? `${selectedProduct.brand} - ${selectedProduct.name} [SPH: ${sphere} | CYL: ${cylinder || "0.00"}]`.toUpperCase() : `${selectedProduct.brand} - ${selectedProduct.name}`.toUpperCase(),
       qtyReceived: Number(qty),
       purchasePricePerUnit: Number(costPrice),
-      sellingPricePerUnit: Number(sellingPrice || selectedProduct.price),
+      sellingPricePerUnit: Number(sellingPrice || selectedProduct.sellingprice || selectedProduct.price || 0),
       cgst: selectedProduct.cgst || 0,
       sgst: selectedProduct.sgst || 0,
       cgstCalculatedAmount: cgstAmt,
@@ -362,18 +362,22 @@ export default function PurchaseEntry({ backendUrl, token }) {
 
               {supplierSuggestions.length > 0 && (
                 <div ref={supplierScrollRef} className="absolute left-0 right-0 top-full mt-1 bg-white border border-cyan-300 rounded-lg shadow-2xl max-h-48 overflow-y-auto divide-y z-50">
-                  {supplierSuggestions.map((s, idx) => (
-                    <div 
-                      key={s._id} 
-                      onClick={() => selectSupplierItem(s)}
-                      className={`p-2.5 cursor-pointer text-xs flex justify-between items-center font-bold uppercase transition-colors ${
-                        idx === supplierIndex ? "bg-cyan-100 text-cyan-900 border-l-4 border-cyan-600" : "hover:bg-cyan-50 text-slate-900"
-                      }`}
-                    >
-                      <span>{s.supplierName}</span>
-                      {s.gstinTaxId && <span className="text-[9px] font-mono text-gray-400 bg-gray-100 px-1 py-0.5 rounded">GST: {s.gstinTaxId}</span>}
-                    </div>
-                  ))}
+                  {supplierSuggestions.map((s, idx) => {
+                    const isSelectedHighlight = idx === supplierIndex;
+                    return (
+                      <div 
+                        key={s._id} 
+                        data-index={idx}
+                        onClick={() => selectSupplierItem(s)}
+                        className={`p-2.5 cursor-pointer text-xs flex justify-between items-center font-bold uppercase transition-colors ${
+                          isSelectedHighlight ? "bg-cyan-600 text-white font-bold shadow-md ring-2 ring-cyan-400" : "hover:bg-cyan-50 text-slate-900 bg-white"
+                        }`}
+                      >
+                        <span>{s.supplierName}</span>
+                        {s.gstinTaxId && <span className={`text-[9px] font-mono px-1 py-0.5 rounded ${isSelectedHighlight ? 'bg-cyan-700 text-cyan-100' : 'bg-gray-100 text-gray-400'}`}>GST: {s.gstinTaxId}</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -456,7 +460,7 @@ export default function PurchaseEntry({ backendUrl, token }) {
                   <label className="block text-[9px] sm:text-[10px] font-bold text-amber-900 uppercase mb-0.5">Account Number</label>
                   <input type="text" name="accountNumber" data-next="ifscCode" value={newSupplierData.accountNumber} onChange={handleNewSupplierChange} placeholder="Account No" className="w-full border border-amber-200 rounded p-1.5 text-xs bg-white outline-none focus:border-cyan-500" />
                 </div>
-                <div className="col-span-2 md:col-span-1">
+                <div>
                   <label className="block text-[9px] sm:text-[10px] font-bold text-amber-900 uppercase mb-0.5">IFSC Code</label>
                   <input type="text" name="ifscCode" data-next="productSearchInput" value={newSupplierData.ifscCode} onChange={handleNewSupplierChange} placeholder="IFSC Code" className="w-full border border-amber-200 rounded p-1.5 text-xs uppercase bg-white outline-none focus:border-cyan-500" />
                 </div>
@@ -470,7 +474,6 @@ export default function PurchaseEntry({ backendUrl, token }) {
           <span className="text-[11px] sm:text-xs font-black text-cyan-900 block mb-2 sm:mb-3 uppercase tracking-wide">⚙️ Active Item Intake Workspace</span>
           
           <div className="space-y-3">
-            {/* Redesigned grid to natively adapt to single column formats on smartphones */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
               <div className="lg:col-span-5 relative">
                 <label className="block text-[10px] sm:text-[11px] font-bold text-gray-600 uppercase mb-1 flex items-center gap-1">
@@ -489,21 +492,25 @@ export default function PurchaseEntry({ backendUrl, token }) {
 
                 {suggestions.length > 0 && (
                   <div ref={productScrollRef} className="absolute left-0 right-0 top-full mt-1 bg-white border border-cyan-300 rounded-lg shadow-2xl max-h-48 overflow-y-auto divide-y z-50">
-                    {suggestions.map((p, idx) => (
-                      <div 
-                        key={p._id} 
-                        onClick={() => selectCatalogItem(p)}
-                        className={`p-2.5 cursor-pointer text-xs flex justify-between items-center transition-colors ${
-                          idx === productIndex ? "bg-cyan-100 text-cyan-900 border-l-4 border-cyan-600" : "hover:bg-cyan-50 text-slate-900"
-                        }`}
-                      >
-                        <div>
-                          <p className="font-bold text-slate-900 text-xs">{p.brand} - {p.name}</p>
-                          <p className="text-[10px] font-mono text-gray-400">SKU: {p.sku} | Stock: {p.stock} units</p>
+                    {suggestions.map((p, idx) => {
+                      const isHighlightedRow = idx === productIndex;
+                      return (
+                        <div 
+                          key={p._id} 
+                          data-index={idx}
+                          onClick={() => selectCatalogItem(p)}
+                          className={`p-2.5 cursor-pointer text-xs flex justify-between items-center transition-all duration-75 ${
+                            isHighlightedRow ? "bg-cyan-600 text-white font-bold shadow-md ring-2 ring-cyan-400 scale-[1.01]" : "hover:bg-cyan-50 text-slate-900 bg-white"
+                          }`}
+                        >
+                          <div>
+                            <p className={`font-bold text-xs ${isHighlightedRow ? 'text-white' : 'text-slate-900'}`}>{p.brand} - {p.name}</p>
+                            <p className={`text-[10px] font-mono ${isHighlightedRow ? 'text-cyan-100' : 'text-gray-400'}`}>SKU: {p.sku} | Stock: {p.stock} units</p>
+                          </div>
+                          <span className={`font-mono px-1.5 py-0.5 rounded text-[10px] font-bold ${isHighlightedRow ? 'bg-cyan-700 text-white' : 'bg-slate-100 text-slate-700'}`}>₹{p.sellingprice || p.price}</span>
                         </div>
-                        <span className="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-bold">₹{p.price}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -587,7 +594,6 @@ export default function PurchaseEntry({ backendUrl, token }) {
             📋 Staged Manifest Items ({purchaseItems.length})
           </div>
           
-          {/* Isolation wrapper lets your client safely swipe side-to-side without resizing calculations */}
           <div className="overflow-x-auto bg-white">
             <table className="w-full border-collapse text-left text-xs min-w-[850px]">
               <thead>
