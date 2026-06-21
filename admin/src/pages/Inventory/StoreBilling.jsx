@@ -534,23 +534,29 @@ const StoreBilling = ({ backendUrl, token }) => {
   };
 
   const selectFrameItem = (prod) => {
-    if ((prod.stock ?? 0) <= 0) {
-      toast.error(`Halted! "\${prod.name}" has 0 available units. Restock catalog before billing.`);
-      return;
-    }
-    setFrameId(prod._id);
-    setFramePrice(Number(prod.price || 0));
-    setSelectedProductRawData(prod); 
-    setSelectedBrandAndName(`\${prod.brand || 'Generic'} - \${prod.name}`.toUpperCase());
-    setFrameInput(`\${prod.brand || 'Generic'} - \${prod.name}`.toUpperCase());
-    setFrameSuggestions([]); 
+  if ((prod.stock ?? 0) <= 0) {
+    // 🚀 FIX: Removed backslash from toast variable
+    toast.error(`Halted! "${prod.name}" has 0 available units. Restock catalog before billing.`);
+    return;
+  }
+  setFrameId(prod._id);
+  setFramePrice(Number(prod.price || 0));
+  setSelectedProductRawData(prod); 
+  
+  // 🚀 FIX: Removed backslashes here so it correctly evaluates the brand and name!
+  const formattedString = `${prod.brand || 'Generic'} - ${prod.name || ''}`.toUpperCase();
+  setSelectedBrandAndName(formattedString);
+  setFrameInput(formattedString);
+  
+  setFrameSuggestions([]); 
 
-    setTimeout(() => {
-      const nextFieldName = isLensConfigRequired ? "r_sph" : "commitItemBtn";
-      const nextEl = document.querySelector(`[name="\${nextFieldName}"]`);
-      if (nextEl) nextEl.focus();
-    }, 50);
-  };
+  setTimeout(() => {
+    // 🚀 FIX: Removed backslash from nextFieldName template query selector string
+    const nextFieldName = isLensConfigRequired ? "r_sph" : "commitItemBtn";
+    const nextEl = document.querySelector(`[name="${nextFieldName}"]`);
+    if (nextEl) nextEl.focus();
+  }, 50);
+};
 
   const handleCustomerKeyDown = (e) => {
     if (customerSuggestions.length === 0) return;
