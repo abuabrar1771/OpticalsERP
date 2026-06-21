@@ -1010,7 +1010,7 @@ const StoreBilling = ({ backendUrl, token }) => {
                   className="w-full bg-slate-50 border border-gray-300 rounded px-3 py-2 text-sm font-bold shadow-sm outline-none focus:bg-white focus:border-blue-500"
                 >
                   {!lensType && <option value="">Select Lens...</option>}
-                  {dbLensTypes.map(t => <option key={t._id} value={t.name}>{t.name} (₹{t.price})</option>)}
+                  {dbLensTypes.map(t => <option key={t._id} value={t.name}>{t.name} (₹{t.sellingprice})</option>)}
                 </select>
                 <p className="text-[10px] font-mono text-gray-800 mt-1.5 text-right">Base Price: ₹{baseLensPrice}</p>
               </div>
@@ -1047,7 +1047,7 @@ const StoreBilling = ({ backendUrl, token }) => {
                           <span>{active ? '✓' : '＋'}</span>
                           <span>{f.name}</span>
                           <span className={`text-[9px] font-mono font-medium px-1.5 py-0.2 rounded ml-1 ${active ? 'bg-blue-500 text-blue-50' : 'bg-slate-800 text-white'}`}>
-                            ₹{f.price}
+                            ₹{f.sellingprice}
                           </span>
                         </button>
                       );
