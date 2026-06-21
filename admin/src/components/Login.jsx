@@ -1,106 +1,94 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
-
-// Force Axios to send cookies automatically for every dashboard session request
-axios.defaults.withCredentials = true;
+import React, { useState } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const Login = ({ setToken }) => {
-  const navigate = useNavigate();
-  const [mobileNum, setMobileNum] = useState("");
-  const [password, setPassword] = useState("");
+    const [mobileNumber, setMobileNumber] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
-  const onSubmitHandler = async (e) => {
-    e.preventDefault();
-    try {
-      // 🌟 ROBUST CLEANING: Strip spaces, dashes, parentheses
-      const cleanMobile = mobileNum.replace(/\s+/g, "").replace(/[-()]/g, "");
+    // Dynamically choose backend URI
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || "https://sacrifice-ravishing-nail.ngrok-free.dev";
 
-      // Standardize to your exact backend format (+91xxxxxxxxxx)
-      const fullMobileNum = cleanMobile.startsWith("+91")
-        ? cleanMobile
-        : cleanMobile.startsWith("91")
-          ? `+${cleanMobile}`
-          : `+91${cleanMobile}`;
+    // Global Axios Interceptor fallback rule: Forces Ngrok to skip warning interstitial page
+    axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
 
-      /* 🚀 AWS PRODUCTION ROUTING:
-         We fetch dynamically using the VITE_BACKEND_URL environment variable.
-         All localtunnel bypass reminder headers are completely removed since we are on AWS!
-      */
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://13.60.77.129:4000";
-      
-      const response = await axios.post(
-        `${backendUrl}/api/user/login`,
-        {
-          mobileNum: fullMobileNum,
-          password: password,
+    const onSubmitHandler = async (e) => {
+        e.preventDefault();
+        try {
+            setLoading(true);
+            
+            // Clean up any extraneous whitespaces/formatting from phone values
+            const cleanMobile = mobileNumber.trim();
+
+            const response = await axios.post(`${backendUrl}/api/user/login`, {
+                mobileNumber: cleanMobile,
+                password: password
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true' // <-- Explicit safety request bypass
+                }
+            });
+
+            if (response.data.success) {
+                const receivedToken = response.data.token;
+                setToken(receivedToken);
+                localStorage.setItem('token', receivedToken);
+                toast.success("Logged in successfully!");
+                navigate('/dashboard');
+            } else {
+                toast.error(response.data.message || "Invalid credentials");
+            }
+        } catch (error) {
+            console.error("Login Error:", error);
+            toast.error(error.response?.data?.message || "Network Error: Connectivity failed.");
+        } finally {
+            setLoading(false);
         }
-      );
+    };
 
-      if (response.data.success) {
-        // Double-Check Security: Verify that the account profile has the proper Admin designation
-        if (response.data.user && response.data.user.role === "admin") {
-          setToken(true);
-          localStorage.setItem("user", JSON.stringify(response.data.user));
-          toast.success("Welcome back, Admin!");
-          navigate("/");
-        } else {
-          // Explicit Block: If the user credentials exist but they aren't admin, deny access immediately
-          toast.error(
-            "Access denied. This account is not authorized as an Administrator."
-          );
-        }
-      } else {
-        toast.error(response.data.message);
-      }
-    } catch (error) {
-      console.error("Login Error:", error);
-      toast.error(error.response?.data?.message || error.message);
-    }
-  };
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+            <form onSubmit={onSubmitHandler} className="bg-white p-8 rounded-lg shadow-md w-96">
+                <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Opticals ERP Admin</h2>
+                
+                <div className="mb-4">
+                    <label className="block text-gray-700 text-sm font-bold mb-2">Mobile Number</label>
+                    <input 
+                        type="text" 
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
+                        placeholder="Enter mobile number"
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                    />
+                </div>
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <form
-        onSubmit={onSubmitHandler}
-        className="flex flex-col items-center w-full max-w-sm gap-4 text-gray-800 p-8 border rounded-xl shadow-lg bg-white border-t-4 border-black"
-      >
-        <div className="inline-flex items-center gap-2 mb-2 mt-3">
-          <p className="prata-regular text-2xl font-bold uppercase tracking-wider">
-            Admin Portal LogIn
-          </p>
+                <div className="mb-6">
+                    <label className="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                    <input 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter password"
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                    />
+                </div>
+
+                <button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200"
+                >
+                    {loading ? 'Logging in...' : 'Login to Dashboard'}
+                </button>
+            </form>
         </div>
-
-        <div className="flex w-full border border-gray-400 rounded overflow-hidden focus-within:border-black transition-all">
-          <span className="bg-gray-100 px-3 py-2 border-r border-gray-400 text-gray-500 text-sm flex items-center font-medium">
-            +91
-          </span>
-          <input
-            type="tel"
-            value={mobileNum}
-            onChange={(e) => setMobileNum(e.target.value)}
-            className="w-full px-3 py-2 outline-none text-sm"
-            placeholder="Mobile Number (e.g. 9087795074)"
-            required
-          />
-        </div>
-
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-400 rounded outline-none text-sm focus:border-black transition-all"
-          placeholder="Password"
-          required
-        />
-
-        <button className="bg-black text-white font-bold py-2.5 mt-2 rounded w-full hover:bg-gray-800 active:scale-[0.99] transition-all uppercase tracking-widest text-xs">
-          Login to Dashboard
-        </button>
-      </form>
-    </div>
-  );
+    );
 };
 
 export default Login;
