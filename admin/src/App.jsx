@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import axios from "axios"; // 🚀 Added Axios import for global pipeline routing rules
 
 import TopMenuBar from "./components/TopMenuBar";
 import HomePage from "./components/HomePage";
@@ -22,13 +23,20 @@ import ReceiptVoucher from "./pages/ReceiptVoucher";
 import DaybookRegistry from "./pages/DaybookRegistry";
 import ProfitLossAnalyzer from "./pages/ProfitLossAnalyzer";
 import OpeningStockEntry from "./pages/Inventory/OpeningStockEntry";
-import SalesProfitReport from "./pages/SalesProfit"; // 🌟 FIXED: Changed import name to match the Route element name below
+import SalesProfitReport from "./pages/SalesProfit"; 
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
 export const currencySymbol = "₹";
+
+// 🚀 PERMANENT GLOBAL INTERCEPTOR ROUTER LAYER
+// This forces Ngrok to step aside and deliver raw database JSON to your dashboard views automatically
+axios.interceptors.request.use((config) => {
+  config.headers['ngrok-skip-browser-warning'] = 'true';
+  return config;
+});
 
 export const categoryMap = {
   EYE_GLASS: ["Full-Rim", "Half-Rim", "Rimless", "Kids"],
@@ -65,6 +73,11 @@ const App = () => {
 
   useEffect(() => {
     sessionStorage.setItem("token", token);
+    
+    // Inject session token into standard Axios headers if user logs in successfully
+    if (token) {
+      axios.defaults.headers.common['token'] = token;
+    }
   }, [token]);
 
   return (
@@ -192,7 +205,6 @@ const App = () => {
                 }
               />
               
-              {/* 🌟 FIXED: Route path changed to matching lowercase string "/sales-profit" */}
               <Route 
                 path="/sales-profit" 
                 element={<SalesProfitReport backendUrl={backendUrl} token={token} />} 
