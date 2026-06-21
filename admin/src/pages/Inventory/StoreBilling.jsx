@@ -73,7 +73,7 @@ const ThermalReceipt = ({ invoiceData }) => {
           </style>
         </head>
         <body>
-          ${printContent}
+          \${printContent}
           <script>
             window.onload = function() {
               window.print();
@@ -287,7 +287,7 @@ const StoreBilling = ({ backendUrl, token }) => {
   const generateSphCylOptions = () => {
     const options = [];
     for (let i = 14.00; i >= -14.00; i -= 0.25) {
-      const formatted = i > 0 ? `+${i.toFixed(2)}` : i.toFixed(2);
+      const formatted = i > 0 ? `+\${i.toFixed(2)}` : i.toFixed(2);
       options.push(formatted === '-0.00' ? '0.00' : formatted);
     }
     return [...new Set(options)];
@@ -319,7 +319,7 @@ const StoreBilling = ({ backendUrl, token }) => {
   useEffect(() => {
     const fetchLensConfigs = async () => {
       try {
-        const response = await axios.get(`${backendUrl}/api/lens/all`, { headers: { token } });
+        const response = await axios.get(`\${backendUrl}/api/lens/all`, { headers: { token } });
         const configsArray = response.data.data || [];
 
         if (configsArray.length > 0) {
@@ -341,7 +341,7 @@ const StoreBilling = ({ backendUrl, token }) => {
       if (query.length >= 1) {
         try {
           const res = await axios.get(
-            `${backendUrl}/api/inventory/search-customer?mobileNum=${encodeURIComponent(query)}`, 
+            `\${backendUrl}/api/inventory/search-customer?mobileNum=\${encodeURIComponent(query)}`, 
             { headers: { token } }
           );
           if (res.data.success && res.data.history) {
@@ -361,13 +361,16 @@ const StoreBilling = ({ backendUrl, token }) => {
     return () => clearTimeout(delayDebounceFn);
   }, [customerSearchInput, backendUrl, token]);
 
+  // 🚀 FIXED: Converts the live input string into lowercase prior to endpoint transmission to bypass case mismatch bugs!
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       const queryStr = frameInput.trim();
       if (queryStr.length > 0) {
         try {
+          const cleanQuery = queryStr.toLowerCase();
+
           const res = await axios.get(
-            `${backendUrl}/api/inventory/search-products?query=${queryStr}&category=${selectedProductCategory}`, 
+            `\${backendUrl}/api/inventory/search-products?query=\${encodeURIComponent(cleanQuery)}&category=\${selectedProductCategory}`, 
             { headers: { token } }
           );
 
@@ -398,7 +401,7 @@ const StoreBilling = ({ backendUrl, token }) => {
       e.preventDefault();
       const nextFieldName = e.target.getAttribute("data-next");
       if (nextFieldName) {
-        const nextElement = document.querySelector(`[name="${nextFieldName}"]`);
+        const nextElement = document.querySelector(`[name="\${nextFieldName}"]`);
         if (nextElement) {
           nextElement.focus();
           if (nextElement.select) nextElement.select(); 
@@ -434,7 +437,7 @@ const StoreBilling = ({ backendUrl, token }) => {
     }
 
     if (selectedProductRawData && (selectedProductRawData.stock ?? 0) <= 0) {
-      toast.error(`Stock Error! "${selectedProductRawData.name}" is completely out of stock and cannot be added.`);
+      toast.error(`Stock Error! "\${selectedProductRawData.name}" is completely out of stock and cannot be added.`);
       return;
     }
 
@@ -455,7 +458,7 @@ const StoreBilling = ({ backendUrl, token }) => {
       category: selectedProductCategory,
       subCategory: selectedSubCategory,
       frameId: frameId || null, 
-      productName: selectedBrandAndName || `${selectedProductCategory.replace('_', ' ')} Custom Item`,
+      productName: selectedBrandAndName || `\${selectedProductCategory.replace('_', ' ')} Custom Item`,
       framePrice: Number(framePrice || 0),
       lensType: isLensConfigRequired && lensType ? lensType : 'Standard Non-Powered',
       lensFeatures: isLensConfigRequired ? featureNamesText : 'None',
@@ -498,11 +501,9 @@ const StoreBilling = ({ backendUrl, token }) => {
 
   const netTotalBillAmount = calculateTotalBill();
   
-  // 🌟 DYNAMIC RESTRICTION MATH RENDERING LOOP
   const activeUpfrontAdvanceValue = isAdvanceFeatureAllowed ? Number(advancePaid || 0) : netTotalBillAmount;
   const balanceOutstandingDue = Math.max(0, netTotalBillAmount - activeUpfrontAdvanceValue);
 
-  // Fallback cleanup if items structure updates changes permissions boundaries
   useEffect(() => {
     if (!isAdvanceFeatureAllowed) {
       setAdvancePaid(0);
@@ -514,7 +515,7 @@ const StoreBilling = ({ backendUrl, token }) => {
   const selectCustomerItem = (cust) => {
     setPatientName(cust.patientName.toUpperCase()); 
     setMobileNum(cust.patientMobile.replace('+91', ''));
-    setCustomerSearchInput(`${cust.patientName} (${cust.patientMobile})`);
+    setCustomerSearchInput(`\${cust.patientName} (\${cust.patientMobile})`);
     setPastHistory(cust.history || []);
     setIsReturningCustomer(true);
     setCustomerSuggestions([]);
@@ -528,19 +529,19 @@ const StoreBilling = ({ backendUrl, token }) => {
 
   const selectFrameItem = (prod) => {
     if ((prod.stock ?? 0) <= 0) {
-      toast.error(`Halted! "${prod.name}" has 0 available units. Restock catalog before billing.`);
+      toast.error(`Halted! "\${prod.name}" has 0 available units. Restock catalog before billing.`);
       return;
     }
     setFrameId(prod._id);
     setFramePrice(Number(prod.price || 0));
     setSelectedProductRawData(prod); 
-    setSelectedBrandAndName(`${prod.brand || 'Generic'} - ${prod.name}`.toUpperCase());
-    setFrameInput(`${prod.brand || 'Generic'} - ${prod.name}`.toUpperCase());
+    setSelectedBrandAndName(`\${prod.brand || 'Generic'} - \${prod.name}`.toUpperCase());
+    setFrameInput(`\${prod.brand || 'Generic'} - \${prod.name}`.toUpperCase());
     setFrameSuggestions([]); 
 
     setTimeout(() => {
       const nextFieldName = isLensConfigRequired ? "r_sph" : "commitItemBtn";
-      const nextEl = document.querySelector(`[name="${nextFieldName}"]`);
+      const nextEl = document.querySelector(`[name="\${nextFieldName}"]`);
       if (nextEl) nextEl.focus();
     }, 50);
   };
@@ -625,7 +626,7 @@ const StoreBilling = ({ backendUrl, token }) => {
       const payload = {
         invoiceNumber: "INV-" + Date.now().toString().slice(-6),
         patientName: patientName.toUpperCase(),
-        patientMobile: mobileNum.startsWith('+91') ? mobileNum : `+91${mobileNum}`,
+        patientMobile: mobileNum.startsWith('+91') ? mobileNum : `+91\${mobileNum}`,
         paymentMode: paymentMode,
         discount: computedDiscountCashValue,
         totalAmount: computedTotalAmount,
@@ -648,10 +649,10 @@ const StoreBilling = ({ backendUrl, token }) => {
         }))
       };
 
-      const res = await axios.post(`${backendUrl}/api/inventory/create-invoice`, payload, { headers: { token } });
+      const res = await axios.post(`\${backendUrl}/api/inventory/create-invoice`, payload, { headers: { token } });
       
       if (res.data.success) {
-        toast.success(`Invoice saved successfully with state profile: ${derivedProductionStatus.toUpperCase()}`);
+        toast.success(`Invoice saved successfully with state profile: \${derivedProductionStatus.toUpperCase()}`);
         
         setActivePrintedInvoice({
           ...payload,
@@ -723,7 +724,7 @@ const StoreBilling = ({ backendUrl, token }) => {
                 {customerSuggestions.length > 0 && (
                   <div ref={customerScrollRef} className="absolute left-0 right-0 mt-1 bg-white border border-blue-400 rounded-lg shadow-2xl z-50 max-h-48 overflow-y-auto divide-y divide-gray-100">
                     {customerSuggestions.map((cust, idx) => (
-                      <div key={cust._id} onClick={() => selectCustomerItem(cust)} className={`p-3 cursor-pointer flex justify-between items-center text-xs transition-all ${idx === customerActiveIndex ? 'bg-blue-600 text-white font-bold' : 'hover:bg-blue-50 text-slate-800'}`}>
+                      <div key={cust._id} onClick={() => selectCustomerItem(cust)} className={`p-3 cursor-pointer flex justify-between items-center text-xs transition-all \${idx === customerActiveIndex ? 'bg-blue-600 text-white font-bold' : 'hover:bg-blue-50 text-slate-800'}`}>
                         <div>
                           <p className="text-sm font-bold">{cust.patientName}</p>
                           <p className="font-mono text-[11px] opacity-80">Phone: {cust.patientMobile}</p>
@@ -845,7 +846,7 @@ const StoreBilling = ({ backendUrl, token }) => {
                         <div 
                           key={prod._id} 
                           onClick={() => !isOutOfStock && selectFrameItem(prod)} 
-                          className={`p-2.5 my-0.5 flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs rounded gap-2 transition-colors ${
+                          className={`p-2.5 my-0.5 flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs rounded gap-2 transition-colors \${
                             isOutOfStock 
                               ? 'bg-rose-50/60 opacity-60 cursor-not-allowed' 
                               : idx === frameActiveIndex 
@@ -854,17 +855,17 @@ const StoreBilling = ({ backendUrl, token }) => {
                           }`}
                         >
                           <div>
-                            <p className={`font-black text-xs sm:text-sm ${isOutOfStock ? 'text-rose-900 line-through' : 'text-slate-900'}`}>
+                            <p className={`font-black text-xs sm:text-sm \${isOutOfStock ? 'text-rose-900 line-through' : 'text-slate-900'}`}>
                               {(prod.brand || 'Generic').toUpperCase()} - {prod.name.toUpperCase()}
                             </p>
                             <p className="font-mono text-[10px] text-slate-500">SKU: {prod.sku || 'N/A'} | Style: {prod.subCategory || 'General'}</p>
                           </div>
                           
                           <div className="flex items-center justify-between w-full sm:w-auto gap-4 text-right shrink-0">
-                            <span className={`inline-block px-1.5 py-0.5 font-mono font-bold text-[10px] sm:text-xs rounded ${
+                            <span className={`inline-block px-1.5 py-0.5 font-mono font-bold text-[10px] sm:text-xs rounded \${
                               isOutOfStock ? 'bg-rose-600 text-white' : 'bg-emerald-100 text-emerald-800'
                             }`}>
-                              {isOutOfStock ? 'SOLD OUT' : `${prod.stock ?? 0} units`}
+                              {isOutOfStock ? 'SOLD OUT' : `\${prod.stock ?? 0} units`}
                             </span>
                             <p className="font-bold text-xs sm:text-sm px-2 py-0.5 rounded font-mono bg-blue-50 text-blue-700">
                               ₹{prod.price.toFixed(2)}
@@ -886,7 +887,7 @@ const StoreBilling = ({ backendUrl, token }) => {
             </div>
 
             {/* SPLIT SCREEN ROW: VISION PARAMETERS & CORE GLASS DROPDOWN */}
-            <div className={`grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch ${isLensConfigRequired ? 'opacity-100' : 'opacity-30 pointer-events-none select-none'}`}>
+            <div className={`grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch \${isLensConfigRequired ? 'opacity-100' : 'opacity-30 pointer-events-none select-none'}`}>
               
               {/* LEFT SIDE: DIOPTER METRICS */}
               <div className="lg:col-span-7 bg-white p-2.5 sm:p-3 border rounded-lg border-gray-300 shadow-sm">
@@ -900,31 +901,31 @@ const StoreBilling = ({ backendUrl, token }) => {
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">SPH</label>
                         <select name="r_sph" data-next="r_cyl" value={rightEye.sph} onChange={(e)=>setRightEye({...rightEye, sph: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {sphCylRanges.map(v => <option key={`r-sph-${v}`} value={v}>{v}</option>)}
+                          {sphCylRanges.map(v => <option key={`r-sph-\${v}`} value={v}>{v}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">CYL</label>
-                        <select name="r_cyl" data-next="r_axis" value={rightEye.cyl} onChange={(e)=>setRightEye({...rightEye, cyl: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {sphCylRanges.map(v => <option key={`r-cyl-${v}`} value={v}>{v}</option>)}
+                        <select name="r_cyl" data-next="r_axis" value={rightEye.get_cyl} onChange={(e)=>setRightEye({...rightEye, cyl: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
+                          {sphCylRanges.map(v => <option key={`r-cyl-\${v}`} value={v}>{v}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">Axis</label>
                         <select name="r_axis" data-next="r_add" value={rightEye.axis} onChange={(e)=>setRightEye({...rightEye, axis: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {axisRanges.map(v => <option key={`r-ax-${v}`} value={v}>{v}°</option>)}
+                          {axisRanges.map(v => <option key={`r-ax-\${v}`} value={v}>{v}°</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">ADD</label>
                         <select name="r_add" data-next="r_pd" value={rightEye.add} onChange={(e)=>setRightEye({...rightEye, add: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {addRanges.map(v => <option key={`r-add-${v}`} value={v}>+{v}</option>)}
+                          {addRanges.map(v => <option key={`r-add-\${v}`} value={v}>+{v}</option>)}
                         </select>
                       </div>
                       <div className="col-span-2 sm:col-span-1">
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">PD</label>
                         <select name="r_pd" data-next="l_sph" value={rightEye.pd} onChange={(e)=>setRightEye({...rightEye, pd: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {pdRanges.map(v => <option key={`r-pd-${v}`} value={v}>{v}mm</option>)}
+                          {pdRanges.map(v => <option key={`r-pd-\${v}`} value={v}>{v}mm</option>)}
                         </select>
                       </div>
                     </div>
@@ -937,31 +938,31 @@ const StoreBilling = ({ backendUrl, token }) => {
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">SPH</label>
                         <select name="l_sph" data-next="l_cyl" value={leftEye.sph} onChange={(e)=>setLeftEye({...leftEye, sph: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {sphCylRanges.map(v => <option key={`l-sph-${v}`} value={v}>{v}</option>)}
+                          {sphCylRanges.map(v => <option key={`l-sph-\${v}`} value={v}>{v}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">CYL</label>
                         <select name="l_cyl" data-next="l_axis" value={leftEye.cyl} onChange={(e)=>setLeftEye({...leftEye, cyl: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {sphCylRanges.map(v => <option key={`l-cyl-${v}`} value={v}>{v}</option>)}
+                          {sphCylRanges.map(v => <option key={`l-cyl-\${v}`} value={v}>{v}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">Axis</label>
                         <select name="l_axis" data-next="l_add" value={leftEye.axis} onChange={(e)=>setLeftEye({...leftEye, axis: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {axisRanges.map(v => <option key={`l-ax-${v}`} value={v}>{v}°</option>)}
+                          {axisRanges.map(v => <option key={`l-ax-\${v}`} value={v}>{v}°</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">ADD</label>
                         <select name="l_add" data-next="l_pd" value={leftEye.add} onChange={(e)=>setLeftEye({...leftEye, add: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {addRanges.map(v => <option key={`l-add-${v}`} value={v}>+{v}</option>)}
+                          {addRanges.map(v => <option key={`l-add-\${v}`} value={v}>+{v}</option>)}
                         </select>
                       </div>
                       <div className="col-span-2 sm:col-span-1">
                         <label className="block text-[10px] text-gray-500 uppercase font-bold">PD</label>
                         <select name="l_pd" data-next="lensTypeSelect" value={leftEye.pd} onChange={(e)=>setLeftEye({...leftEye, pd: e.target.value})} disabled={!isPrescriptionRequired} className="w-full border bg-white rounded p-1 font-mono text-xs sm:text-sm outline-none">
-                          {pdRanges.map(v => <option key={`l-pd-${v}`} value={v}>{v}mm</option>)}
+                          {pdRanges.map(v => <option key={`l-pd-\${v}`} value={v}>{v}mm</option>)}
                         </select>
                       </div>
                     </div>
@@ -1008,7 +1009,7 @@ const StoreBilling = ({ backendUrl, token }) => {
                           key={f._id}
                           type="button"
                           onClick={() => handleFeatureToggle(f)}
-                          className={`text-xs px-2.5 py-1.5 rounded-md font-bold border transition-all flex items-center gap-1 shadow-sm outline-none select-none ${
+                          className={`text-xs px-2.5 py-1.5 rounded-md font-bold border transition-all flex items-center gap-1 shadow-sm outline-none select-none \${
                             active 
                               ? 'bg-blue-600 border-blue-700 text-white ring-2 ring-blue-200' 
                               : 'bg-slate-50 border-gray-200 text-gray-700 hover:bg-slate-100'
@@ -1016,7 +1017,7 @@ const StoreBilling = ({ backendUrl, token }) => {
                         >
                           <span>{active ? '✓' : '＋'}</span>
                           <span>{f.name}</span>
-                          <span className={`text-[9px] font-mono font-medium px-1.5 py-0.2 rounded ml-1 ${active ? 'bg-blue-500 text-blue-50' : 'bg-slate-800 text-white'}`}>
+                          <span className={`text-[9px] font-mono font-medium px-1.5 py-0.2 rounded ml-1 \${active ? 'bg-blue-500 text-blue-50' : 'bg-slate-800 text-white'}`}>
                             ₹{f.price}
                           </span>
                         </button>
@@ -1198,7 +1199,7 @@ const StoreBilling = ({ backendUrl, token }) => {
             <div className="border-l border-slate-700 hidden sm:block"></div>
             <div>
               <span className="text-[10px] text-gray-400 font-bold uppercase block tracking-wider">Balance Outstanding Due</span>
-              <span className={`text-lg sm:text-2xl font-extrabold font-mono ${balanceOutstandingDue > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+              <span className={`text-lg sm:text-2xl font-extrabold font-mono \${balanceOutstandingDue > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                 ₹{balanceOutstandingDue}
               </span>
             </div>
@@ -1207,7 +1208,7 @@ const StoreBilling = ({ backendUrl, token }) => {
             type="button" 
             onClick={handleFinalCheckoutSubmit}
             disabled={items.length === 0}
-            className={`w-full sm:w-auto text-slate-950 font-black px-6 sm:px-12 py-3 rounded-lg uppercase tracking-wider text-xs shadow-md transition-transform active:scale-95 flex items-center justify-center ${
+            className={`w-full sm:w-auto text-slate-950 font-black px-6 sm:px-12 py-3 rounded-lg uppercase tracking-wider text-xs shadow-md transition-transform active:scale-95 flex items-center justify-center \${
               items.length === 0 ? 'bg-gray-500 text-gray-300 cursor-not-allowed opacity-50' : 'bg-emerald-500 hover:bg-emerald-600'
             }`}
           >
