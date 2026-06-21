@@ -371,16 +371,15 @@ const StoreBilling = ({ backendUrl, token }) => {
 
           const activeUrl = backendUrl || "https://sacrifice-ravishing-nail.ngrok-free.dev";
 
-          const res = await axios.get(
-              `${activeUrl}/api/inventory/search-products?query=${encodeURIComponent(cleanQuery)}&category=${selectedProductCategory}`, 
-            { 
+              const res = await axios.get(
+                    `https://sacrifice-ravishing-nail.ngrok-free.dev/api/inventory/search-products?query=${encodeURIComponent(cleanQuery)}&category=${selectedProductCategory}`, 
+                { 
               headers: { 
-              'token': token,
-              'ngrok-skip-browser-warning': 'true'
-              } 
-            }
-          );
-
+      'token': token,                             // 1. Passes your adminAuth JWT session token
+      'ngrok-skip-browser-warning': 'true'        // 2. Bypasses the Ngrok browser roadblock page
+    } 
+  }
+);
           if (res.data && Array.isArray(res.data.products)) {
             const parsedMatches = res.data.products.filter(p => p.category === selectedProductCategory);
             setFrameSuggestions(parsedMatches.slice(0, 8));
