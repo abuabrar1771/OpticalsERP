@@ -80,7 +80,8 @@ export default function PurchaseEntry({ backendUrl, token }) {
       if (query.length >= 2 && !selectedProduct) {
         try {
           const res = await axios.get(`${backendUrl}/api/inventory/search-products?query=${query}`, {
-            headers: { token }
+            headers: { token },
+            'ngrok-skip-browser-warning': 'true'
           });
           if (res.data.success) {
             setSuggestions(res.data.products || []);
