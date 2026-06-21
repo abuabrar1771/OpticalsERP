@@ -17,7 +17,6 @@ import purchaseRouter from "./routes/purchaseRoutes.js";
 import supplierRouter from "./routes/supplierRoutes.js";
 import accountingRouter from "./routes/accountingRoutes.js";
 
-
 // DNS Configuration
 import dns from 'node:dns';
 dns.setDefaultResultOrder('ipv4first');
@@ -71,28 +70,18 @@ initializeApp();
 app.use(express.json());
 app.use(cookieParser()); 
 
+// 🌟 THE ONE TRUE CORS CONFIGURATION
 app.use(cors({
   origin: [
     'http://localhost:5174',
     'https://opticals-erp.vercel.app' // Vercel domain
   ],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'token', 'Bypass-Tunnel-Reminder'], // Ensure it's here!
+  allowedHeaders: ['Content-Type', 'Authorization', 'token', 'Bypass-Tunnel-Reminder'], 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 }));
 
-// Explicitly ensure OPTIONS pre-flights exit with a clear green light
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "http://localhost:5174");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, token"); // Added 'token' here
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// 🚫 REMOVED: The manual app.use OPTIONS override that was hardcoding localhost:5174 has been deleted.
 
 // API Endpoints
 app.use('/api/user', userRouter);
@@ -107,7 +96,6 @@ app.use("/api/purchase", purchaseRouter);
 app.use("/api/suppliers", supplierRouter);
 
 app.use("/api/accounting", accountingRouter);
-
 
 app.get('/', (req, res) => {
   res.send("API WORKING")
