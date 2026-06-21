@@ -371,7 +371,12 @@ const StoreBilling = ({ backendUrl, token }) => {
 
           const res = await axios.get(
             `\${backendUrl}/api/inventory/search-products?query=\${encodeURIComponent(cleanQuery)}&category=\${selectedProductCategory}`, 
-            { headers: { token } }
+            { 
+    headers: { 
+      token: token,                                
+      'ngrok-skip-browser-warning': 'true'
+    } 
+  }
           );
 
           if (res.data && Array.isArray(res.data.products)) {
