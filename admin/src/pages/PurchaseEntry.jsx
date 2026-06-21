@@ -79,10 +79,16 @@ export default function PurchaseEntry({ backendUrl, token }) {
       const query = productSearch.trim();
       if (query.length >= 2 && !selectedProduct) {
         try {
-          const res = await axios.get(`${backendUrl}/api/inventory/search-products?query=${query}`, {
-            headers: { token },
-            'ngrok-skip-browser-warning': 'true'
-          });
+          
+            const res = await axios.get(
+                  `${backendUrl}/api/inventory/search-products?query=${encodeURIComponent(cleanQuery)}&category=${selectedProductCategory}`, 
+                  { 
+                    headers: { 
+                    'token': token,                             // 1. Passes your database admin authentication key
+                    'ngrok-skip-browser-warning': 'true'        // 2. Natively steps past the Ngrok gateway roadblock
+                  } 
+                }
+              );
           if (res.data.success) {
             setSuggestions(res.data.products || []);
             setProductIndex(-1);

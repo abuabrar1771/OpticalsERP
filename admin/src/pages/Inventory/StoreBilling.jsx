@@ -370,14 +370,14 @@ const StoreBilling = ({ backendUrl, token }) => {
           const cleanQuery = queryStr.toLowerCase();
 
           const res = await axios.get(
-          `${backendUrl}/api/inventory/search-products?query=${encodeURIComponent(cleanQuery)}&category=${selectedProductCategory}`, 
+            `${backendUrl}/api/inventory/search-products?query=${encodeURIComponent(cleanQuery)}&category=${selectedProductCategory}`, 
             { 
               headers: { 
-              token: token,                                
-             'ngrok-skip-browser-warning': 'true'
-          } 
-          }
-          );
+              'token': token,                             // 1. Passes your database admin authentication key
+              'ngrok-skip-browser-warning': 'true'        // 2. Natively steps past the Ngrok gateway roadblock
+    } 
+  }
+);
 
           if (res.data && Array.isArray(res.data.products)) {
             const parsedMatches = res.data.products.filter(p => p.category === selectedProductCategory);
