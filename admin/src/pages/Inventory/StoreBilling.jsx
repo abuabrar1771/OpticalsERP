@@ -870,15 +870,17 @@ const StoreBilling = ({ backendUrl, token }) => {
 </div>
                           
                           <div className="flex items-center justify-between w-full sm:w-auto gap-4 text-right shrink-0">
-                            <span className={`inline-block px-1.5 py-0.5 font-mono font-bold text-[10px] sm:text-xs rounded \${
-                              isOutOfStock ? 'bg-rose-600 text-white' : 'bg-emerald-100 text-emerald-800'
-                            }`}>
-                              {isOutOfStock ? 'SOLD OUT' : `\${prod.stock ?? 0} units`}
-                            </span>
-                            <p className="font-bold text-xs sm:text-sm px-2 py-0.5 rounded font-mono bg-blue-50 text-blue-700">
-                              ₹{prod.price.toFixed(2)}
-                            </p>
-                          </div>
+  {/* 🚀 FIX: Removed backslashes so the dynamic badge layout evaluates correctly! */}
+  <span className={`inline-block px-1.5 py-0.5 font-mono font-bold text-[10px] sm:text-xs rounded ${
+    isOutOfStock ? 'bg-rose-600 text-white' : 'bg-emerald-100 text-emerald-800'
+  }`}>
+    {isOutOfStock ? 'SOLD OUT' : `${prod.stock ?? 0} units`}
+  </span>
+  
+  <p className="font-bold text-xs sm:text-sm px-2 py-0.5 rounded font-mono bg-blue-50 text-blue-700">
+    ₹{prod.price.toFixed(2)}
+  </p>
+</div>
                         </div>
                       );
                     })}
