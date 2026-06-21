@@ -319,7 +319,7 @@ const StoreBilling = ({ backendUrl, token }) => {
   useEffect(() => {
     const fetchLensConfigs = async () => {
       try {
-        const response = await axios.get(`\${backendUrl}/api/lens/all`, { headers: { token } });
+        const response = await axios.get(`${backendUrl}/api/lens/all`, { headers: { token } });
         const configsArray = response.data.data || [];
 
         if (configsArray.length > 0) {
@@ -370,13 +370,13 @@ const StoreBilling = ({ backendUrl, token }) => {
           const cleanQuery = queryStr.toLowerCase();
 
           const res = await axios.get(
-            `\${backendUrl}/api/inventory/search-products?query=\${encodeURIComponent(cleanQuery)}&category=\${selectedProductCategory}`, 
+          `${backendUrl}/api/inventory/search-products?query=${encodeURIComponent(cleanQuery)}&category=${selectedProductCategory}`, 
             { 
-    headers: { 
-      token: token,                                
-      'ngrok-skip-browser-warning': 'true'
-    } 
-  }
+              headers: { 
+              token: token,                                
+             'ngrok-skip-browser-warning': 'true'
+          } 
+          }
           );
 
           if (res.data && Array.isArray(res.data.products)) {
@@ -654,7 +654,7 @@ const StoreBilling = ({ backendUrl, token }) => {
         }))
       };
 
-      const res = await axios.post(`\${backendUrl}/api/inventory/create-invoice`, payload, { headers: { token } });
+      const res = await axios.post(`${backendUrl}/api/inventory/create-invoice`, payload, { headers: { token } });
       
       if (res.data.success) {
         toast.success(`Invoice saved successfully with state profile: \${derivedProductionStatus.toUpperCase()}`);
