@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import.meta.env.VITE_BACKEND_URL + "/api/user/login",
+
 // Force Axios to send cookies automatically for every dashboard session request
 axios.defaults.withCredentials = true;
 
@@ -24,22 +24,17 @@ const Login = ({ setToken }) => {
           ? `+${cleanMobile}`
           : `+91${cleanMobile}`;
 
-      /* 🚀 LOCALTUNNEL DIRECT FETCH:
-         We hit the tunnel directly. To bypass Localtunnel's "Tunnel Website Ahead" warning block 
-         and let Axios slide straight through to your Express backend code, we pass the 
-         'Bypass-Tunnel-Reminder' header.
+      /* 🚀 AWS PRODUCTION ROUTING:
+         We fetch dynamically using the VITE_BACKEND_URL environment variable.
+         All localtunnel bypass reminder headers are completely removed since we are on AWS!
       */
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://13.60.77.129:4000";
+      
       const response = await axios.post(
-        "https://curvy-books-chew.loca.lt/api/user/login",
+        `${backendUrl}/api/user/login`,
         {
           mobileNum: fullMobileNum,
           password: password,
-        },
-        {
-          headers: {
-            "Bypass-Tunnel-Reminder": "true",
-            "Content-Type": "application/json",
-          },
         }
       );
 
