@@ -15,7 +15,7 @@ export default function BillWiseSales({ backendUrl, token }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('ALL');
   
-  // 🌟 NEW: Initialize state directly to today's date string (Format: YYYY-MM-DD)
+  // Initialize state directly to today's date string (Format: YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Fetch all physical retail invoices from your full sales ledger endpoint on mount
@@ -59,13 +59,13 @@ export default function BillWiseSales({ backendUrl, token }) {
   // =====================================================================
   const totalBillsCount = dateFilteredInvoices.length;
   
-  // 1. Accumulate total net cash collected at the terminal counters for target range
-  const totalNetRevenue = dateFilteredInvoices.reduce((acc, curr) => acc + Number(curr.totalAmount || 0), 0);
+  // 1. 🚀 FIXED: Accumulate total net revenue using grandTotal from your backend schema
+  const totalNetRevenue = dateFilteredInvoices.reduce((acc, curr) => acc + Number(curr.grandTotal || curr.totalAmount || 0), 0);
 
   // 2. Safely parse through dataset to normalize discount tracking card metrics
   const totalDiscountsGiven = dateFilteredInvoices.reduce((acc, curr) => {
     const savedDiscount = Number(curr.discount || 0);
-    const savedNet = Number(curr.totalAmount || 0);
+    const savedNet = Number(curr.grandTotal || curr.totalAmount || 0);
 
     // If discount field matches the total bill, skip legacy corrupted data to prevent inflation
     if (savedDiscount === savedNet && savedDiscount > 0) {
@@ -84,14 +84,21 @@ export default function BillWiseSales({ backendUrl, token }) {
 
   // Filter pipeline by search text query string and payment drop modes
   const finalFilteredInvoices = dateFilteredInvoices.filter(inv => {
-    const matchesSearch = 
-      inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.patientMobile?.includes(searchTerm);
+    // 🚀 FIXED: Support both top-level keys and nested object structures
+    const nameData = (inv.patientName || inv.customer?.name || '').toLowerCase();
+    const phoneData = inv.patientMobile || inv.customer?.phone || '';
+    const invNo = (inv.invoiceNumber || '').toLowerCase();
 
+    const matchesSearch = 
+      invNo.includes(searchTerm.toLowerCase()) ||
+      nameData.includes(searchTerm.toLowerCase()) ||
+      phoneData.includes(searchTerm);
+
+    // 🚀 FIXED: Support both paymentMethod and paymentMode fields safely
+    const currentMethod = (inv.paymentMethod || inv.paymentMode || 'CASH').toUpperCase();
     const matchesPayment = 
       paymentFilter === 'ALL' || 
-      inv.paymentMode?.toUpperCase() === paymentFilter.toUpperCase();
+      currentMethod === paymentFilter.toUpperCase();
 
     return matchesSearch && matchesPayment;
   });
@@ -115,7 +122,7 @@ export default function BillWiseSales({ backendUrl, token }) {
           <span>In-Store Sales Ledger (Bill-Wise Breakdown)</span>
         </h2>
         
-        {/* 🌟 DATE SELECTION CONTROL CONTAINER WITH DEFAULT TODAY */}
+        {/* DATE SELECTION CONTROL CONTAINER WITH DEFAULT TODAY */}
         <div className="flex items-center gap-2 bg-slate-50 border p-2 rounded-lg shadow-sm w-full sm:w-auto">
           <HiOutlineCalendar className="w-4 h-4 text-blue-600 shrink-0" />
           <label className="text-xs font-bold uppercase text-gray-600 whitespace-nowrap">Filter Ledger Date:</label>
@@ -228,7 +235,7 @@ export default function BillWiseSales({ backendUrl, token }) {
 
       {/* DATA MATRIX REPORT TABLE CONTAINER */}
       <div className="w-full overflow-x-auto rounded-lg border border-gray-200">
-        <table className="w-full border-collapse text-left text-sm">
+        <table className="w-full border-collapse text-left text-sm min-w-[950px]">
           <thead>
             <tr className="bg-slate-800 text-white font-bold uppercase border-b border-gray-300 text-[11px] tracking-wide">
               <th className="p-3">Transaction Date</th>
@@ -237,22 +244,28 @@ export default function BillWiseSales({ backendUrl, token }) {
               <th className="p-3">Settlement Mode</th>
               <th className="p-3 text-right">Gross Subtotal</th>
               <th className="p-3 text-right">Deducted Discount</th>
+              <th className="p-3 text-right">Advance Paid</th>
+              <th className="p-3 text-right">Balance Due</th>
               <th className="p-3 text-right">Settled Net Amount</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 text-gray-700">
             {finalFilteredInvoices.length === 0 ? (
               <tr>
-                <td colSpan="7" className="text-center p-12 text-gray-400 font-bold italic bg-gray-50">
+                <td colSpan="9" className="text-center p-12 text-gray-400 font-bold italic bg-gray-50">
                   No matching records for the selected date. Click "Clear (All-Time)" to view full historical data.
                 </td>
               </tr>
             ) : (
               finalFilteredInvoices.map((invoice, idx) => {
-                const parsedNetPrice = Number(invoice.totalAmount || 0);
+                // 🚀 FIXED: Explicit routing fields mapped natively to true MongoDB metrics fields
+                const parsedNetPrice = Number(invoice.grandTotal || invoice.totalAmount || 0);
                 const parsedDiscountPrice = Number(invoice.discount || 0);
+                const parsedAdvanceAmount = Number(invoice.advanceAmount || 0);
+                const parsedBalanceAmount = Number(invoice.balanceAmount || 0);
                 
-                let trueCalculatedGrossRow = parsedNetPrice + parsedDiscountPrice;
+                // If backend subTotal doesn't exist, calculate it live via fallbacks
+                let trueCalculatedGrossRow = Number(invoice.subTotal || (parsedNetPrice + parsedDiscountPrice));
                 let finalDiscountRenderValue = parsedDiscountPrice;
 
                 if (parsedDiscountPrice === parsedNetPrice && parsedDiscountPrice > 0) {
@@ -264,34 +277,41 @@ export default function BillWiseSales({ backendUrl, token }) {
                   ? ((finalDiscountRenderValue / trueCalculatedGrossRow) * 100).toFixed(0)
                   : 0;
 
+                // Normalize fields handling differences between direct customer object configurations
+                const clientName = invoice.customer?.name || invoice.patientName || 'GENERIC CLIENT';
+                const clientPhone = invoice.customer?.phone || invoice.patientMobile || 'N/A';
+                const clientMode = invoice.paymentMethod || invoice.paymentMode || 'Cash';
+
                 return (
-                  <tr key={invoice._id || idx} className="hover:bg-slate-50 transition-colors">
+                  <tr key={invoice._id || idx} className="hover:bg-slate-50 transition-colors text-xs">
                     {/* Column 1: Date */}
-                    <td className="p-3 font-mono text-xs text-gray-500">
+                    <td className="p-3 font-mono text-gray-500">
                       {invoice.createdAt 
                         ? new Date(invoice.createdAt).toLocaleDateString('en-IN') 
-                        : new Date(invoice.date).toLocaleDateString('en-IN')
+                        : invoice.date 
+                          ? new Date(invoice.date).toLocaleDateString('en-IN')
+                          : new Date().toLocaleDateString('en-IN')
                       }
                     </td>
                     
                     {/* Column 2: Invoice No */}
-                    <td className="p-3 font-bold text-slate-900 tracking-wide font-mono text-xs">
+                    <td className="p-3 font-bold text-slate-900 tracking-wide font-mono">
                       {invoice.invoiceNumber || 'N/A'}
                     </td>
                     
                     {/* Column 3: Client Info */}
                     <td className="p-3">
-                      <div className="font-semibold text-slate-900 uppercase text-xs">{invoice.patientName}</div>
-                      <div className="text-[11px] text-gray-400 font-mono mt-0.5">{invoice.patientMobile}</div>
+                      <div className="font-semibold text-slate-900 uppercase">{clientName}</div>
+                      <div className="text-[11px] text-gray-400 font-mono mt-0.5">{clientPhone}</div>
                     </td>
                     
                     {/* Column 4: Payment Badges */}
                     <td className="p-3 align-middle">
                       <span className={`inline-block px-2 py-0.5 text-[10px] font-black uppercase rounded ${
-                        invoice.paymentMode === 'Cash' ? 'bg-amber-100 text-amber-800' :
-                        invoice.paymentMode === 'UPI' ? 'bg-cyan-100 text-cyan-800' : 'bg-purple-100 text-purple-800'
+                        clientMode === 'Cash' ? 'bg-amber-100 text-amber-800' :
+                        clientMode === 'UPI' ? 'bg-cyan-100 text-cyan-800' : 'bg-purple-100 text-purple-800'
                       }`}>
-                        {invoice.paymentMode || 'Cash'}
+                        {clientMode}
                       </span>
                     </td>
                     
@@ -311,8 +331,18 @@ export default function BillWiseSales({ backendUrl, token }) {
                         <span>-₹{Number(finalDiscountRenderValue).toFixed(2)}</span>
                       </div>
                     </td>
+
+                    {/* Column 7: Upfront Advance Paid */}
+                    <td className="p-3 text-right font-mono text-emerald-600 font-bold">
+                      ₹{Number(parsedAdvanceAmount).toFixed(2)}
+                    </td>
+
+                    {/* Column 8: Outstanding Balance Due */}
+                    <td className={`p-3 text-right font-mono font-bold ${parsedBalanceAmount > 0 ? 'text-rose-500 bg-rose-50/20' : 'text-emerald-500'}`}>
+                      ₹{Number(parsedBalanceAmount).toFixed(2)}
+                    </td>
                     
-                    {/* Column 7: Settled Net Amount Display */}
+                    {/* Column 9: Settled Net Amount Display */}
                     <td className="p-3 text-right font-mono font-black text-slate-950 text-sm bg-slate-50/40">
                       ₹{Number(parsedNetPrice).toFixed(2)}
                     </td>
