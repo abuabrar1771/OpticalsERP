@@ -419,7 +419,7 @@ const StoreBilling = ({ backendUrl, token }) => {
   const handleLensTypeChange = (name) => {
     setLensType(name);
     const target = dbLensTypes.find(item => item.name === name);
-    setBaseLensPrice(target ? Number(target.price || 0) : 0);
+    setBaseLensPrice(target ? Number(target.sellingprice || 0) : 0);
   };
 
   const handleFeatureToggle = (featureObj) => {
@@ -431,7 +431,7 @@ const StoreBilling = ({ backendUrl, token }) => {
     }
   };
 
-  const totalFeaturesPrice = selectedFeatures.reduce((sum, curr) => sum + Number(curr.price || 0), 0);
+  const totalFeaturesPrice = selectedFeatures.reduce((sum, curr) => sum + Number(curr.sellingprice || 0), 0);
   const currentWorkspaceLensPrice = isLensConfigRequired ? (Number(baseLensPrice || 0) + Number(totalFeaturesPrice || 0)) : 0;
 
   const handleAddItemToGrid = (e) => {
