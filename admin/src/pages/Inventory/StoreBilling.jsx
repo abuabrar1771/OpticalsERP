@@ -583,34 +583,36 @@ const StoreBilling = ({ backendUrl, token }) => {
   };
 
   const handleFrameKeyDown = (e) => {
-    if (frameSuggestions.length === 0) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setFrameActiveIndex(p => {
-        const n = p < frameSuggestions.length - 1 ? p + 1 : p;
-        if (frameScrollRef.current && frameScrollRef.current.children[n + 1]) {
-          frameScrollRef.current.children[n + 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-        return n;
-      });
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setFrameActiveIndex(p => {
-        const n = p > 0 ? p - 1 : 0;
-        if (frameScrollRef.current && frameScrollRef.current.children[n + 1]) {
-          frameScrollRef.current.children[n + 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-        return n;
-      });
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (frameActiveIndex >= 0) {
-        selectFrameItem(frameSuggestions[frameActiveIndex]);
-      } else if (frameSuggestions.length > 0) {
-        selectFrameItem(frameSuggestions[0]);
+  if (frameSuggestions.length === 0) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    setFrameActiveIndex(p => {
+      const n = p < frameSuggestions.length - 1 ? p + 1 : p;
+      // 🚀 FIX: target the true index matching your active row elements natively
+      if (frameScrollRef.current && frameScrollRef.current.children[n]) {
+        frameScrollRef.current.children[n].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
+      return n;
+    });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    setFrameActiveIndex(p => {
+      const n = p > 0 ? p - 1 : 0;
+      // 🚀 FIX: target the true index matching your active row elements natively
+      if (frameScrollRef.current && frameScrollRef.current.children[n]) {
+        frameScrollRef.current.children[n].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      return n;
+    });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (frameActiveIndex >= 0) {
+      selectFrameItem(frameSuggestions[frameActiveIndex]);
+    } else if (frameSuggestions.length > 0) {
+      selectFrameItem(frameSuggestions[0]);
     }
-  };
+  }
+};
 
   const handleFinalCheckoutSubmit = async () => {
     if (!patientName || !mobileNum) {
