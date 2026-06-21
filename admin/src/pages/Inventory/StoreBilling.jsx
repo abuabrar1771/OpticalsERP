@@ -584,32 +584,32 @@ const StoreBilling = ({ backendUrl, token }) => {
 
   const handleFrameKeyDown = (e) => {
   if (frameSuggestions.length === 0) return;
+
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     setFrameActiveIndex(p => {
-      const n = p < frameSuggestions.length - 1 ? p + 1 : p;
-      // 🚀 FIX: target the true index matching your active row elements natively
-      if (frameScrollRef.current && frameScrollRef.current.children[n]) {
-        frameScrollRef.current.children[n].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-      return n;
+      const nextIndex = p < frameSuggestions.length - 1 ? p + 1 : p;
+      
+      // Direct native element tracker mapping bypassing math offsets
+      const targetEl = frameScrollRef.current?.querySelector(`[data-index="${nextIndex}"]`);
+      targetEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      
+      return nextIndex;
     });
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
     setFrameActiveIndex(p => {
-      const n = p > 0 ? p - 1 : 0;
-      // 🚀 FIX: target the true index matching your active row elements natively
-      if (frameScrollRef.current && frameScrollRef.current.children[n]) {
-        frameScrollRef.current.children[n].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-      return n;
+      const prevIndex = p > 0 ? p - 1 : 0;
+      
+      const targetEl = frameScrollRef.current?.querySelector(`[data-index="${prevIndex}"]`);
+      targetEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      
+      return prevIndex;
     });
   } else if (e.key === 'Enter') {
     e.preventDefault();
-    if (frameActiveIndex >= 0) {
+    if (frameActiveIndex >= 0 && frameSuggestions[frameActiveIndex]) {
       selectFrameItem(frameSuggestions[frameActiveIndex]);
-    } else if (frameSuggestions.length > 0) {
-      selectFrameItem(frameSuggestions[0]);
     }
   }
 };
@@ -849,43 +849,54 @@ const StoreBilling = ({ backendUrl, token }) => {
                       <span className="bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-mono text-[9px]">Live Matches</span>
                     </div>
                     {frameSuggestions.map((prod, idx) => {
-                      const isOutOfStock = Number(prod.stock ?? 0) <= 0;
-                      return (
-                        <div 
-                          key={prod._id} 
-                          onClick={() => !isOutOfStock && selectFrameItem(prod)} 
-                          className={`p-2.5 my-0.5 flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs rounded gap-2 transition-colors \${
-                            isOutOfStock 
-                              ? 'bg-rose-50/60 opacity-60 cursor-not-allowed' 
-                              : idx === frameActiveIndex 
-                                ? 'bg-blue-600 text-white font-bold cursor-pointer' 
-                                : 'hover:bg-blue-100 text-slate-800 bg-white cursor-pointer'
-                          }`}
-                        >
-                          <div>
-  <p className={`font-black text-xs sm:text-sm ${isOutOfStock ? 'text-rose-900 line-through' : 'text-slate-900'}`}>
-    {(prod.brand || 'Generic').toUpperCase()} - {(prod.name || '').toUpperCase()}
-  </p>
-  <p className="font-mono text-[10px] text-slate-500">
-    SKU: {prod.sku || 'N/A'} | Style: {prod.subCategory || 'General'}
-  </p>
-</div>
-                          
-                          <div className="flex items-center justify-between w-full sm:w-auto gap-4 text-right shrink-0">
-  {/* 🚀 FIX: Removed backslashes so the dynamic badge layout evaluates correctly! */}
-  <span className={`inline-block px-1.5 py-0.5 font-mono font-bold text-[10px] sm:text-xs rounded ${
-    isOutOfStock ? 'bg-rose-600 text-white' : 'bg-emerald-100 text-emerald-800'
-  }`}>
-    {isOutOfStock ? 'SOLD OUT' : `${prod.stock ?? 0} units`}
-  </span>
+  const isOutOfStock = Number(prod.stock ?? 0) <= 0;
   
-  <p className="font-bold text-xs sm:text-sm px-2 py-0.5 rounded font-mono bg-blue-50 text-blue-700">
-    ₹{prod.price.toFixed(2)}
-  </p>
-</div>
-                        </div>
-                      );
-                    })}
+  // 🚀 FORCE THE STATE CHECK DIRECTLY INSIDE THE RENDERING LIFECYCLE
+  const isHighlighted = idx === frameActiveIndex;
+
+  return (
+    <div
+      key={prod._id}
+      data-index={idx} // 🚀 Connects directly with querySelector tracking above!
+      onClick={() => !isOutOfStock && selectFrameItem(prod)}
+      className={`p-2.5 my-0.5 flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs rounded gap-2 transition-all duration-75 ${
+        isOutOfStock
+          ? 'bg-rose-50/60 opacity-60 cursor-not-allowed'
+          : isHighlighted
+            ? 'bg-blue-600 text-white font-bold shadow-md ring-2 ring-blue-400 scale-[1.01]' // 🌟 Vivid focus styles!
+            : 'hover:bg-blue-100 text-slate-800 bg-white'
+      }`}
+    >
+      <div>
+        <p className={`font-black text-xs sm:text-sm ${
+          isOutOfStock 
+            ? 'text-rose-900 line-through' 
+            : isHighlighted 
+              ? 'text-white' 
+              : 'text-slate-900'
+        }`}>
+          {(prod.brand || 'Generic').toUpperCase()} - {(prod.name || '').toUpperCase()}
+        </p>
+        <p className={`font-mono text-[10px] ${isHighlighted ? 'text-blue-100' : 'text-slate-500'}`}>
+          SKU: {prod.sku || 'N/A'} | Style: {prod.subCategory || 'General'}
+        </p>
+      </div>
+      
+      <div className="flex items-center justify-between w-full sm:w-auto gap-4 text-right shrink-0">
+        <span className={`inline-block px-1.5 py-0.5 font-mono font-bold text-[10px] sm:text-xs rounded ${
+          isOutOfStock ? 'bg-rose-600 text-white' : 'bg-emerald-100 text-emerald-800'
+        }`}>
+          {isOutOfStock ? 'SOLD OUT' : `${prod.stock ?? 0} units`}
+        </span>
+        <p className={`font-bold text-xs sm:text-sm px-2 py-0.5 rounded font-mono ${
+          isHighlighted ? 'bg-blue-700 text-white' : 'bg-blue-50 text-blue-700'
+        }`}>
+          ₹{prod.price.toFixed(2)}
+        </p>
+      </div>
+    </div>
+  );
+})}
                   </div>
                 )}
               </div>
