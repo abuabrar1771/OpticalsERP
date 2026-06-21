@@ -861,11 +861,13 @@ const StoreBilling = ({ backendUrl, token }) => {
                           }`}
                         >
                           <div>
-                            <p className={`font-black text-xs sm:text-sm \${isOutOfStock ? 'text-rose-900 line-through' : 'text-slate-900'}`}>
-                              {(prod.brand || 'Generic').toUpperCase()} - {prod.name.toUpperCase()}
-                            </p>
-                            <p className="font-mono text-[10px] text-slate-500">SKU: {prod.sku || 'N/A'} | Style: {prod.subCategory || 'General'}</p>
-                          </div>
+  <p className={`font-black text-xs sm:text-sm ${isOutOfStock ? 'text-rose-900 line-through' : 'text-slate-900'}`}>
+    {(prod.brand || 'Generic').toUpperCase()} - {(prod.name || '').toUpperCase()}
+  </p>
+  <p className="font-mono text-[10px] text-slate-500">
+    SKU: {prod.sku || 'N/A'} | Style: {prod.subCategory || 'General'}
+  </p>
+</div>
                           
                           <div className="flex items-center justify-between w-full sm:w-auto gap-4 text-right shrink-0">
                             <span className={`inline-block px-1.5 py-0.5 font-mono font-bold text-[10px] sm:text-xs rounded \${
